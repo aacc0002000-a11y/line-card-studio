@@ -63,13 +63,11 @@ export function CardActions() {
     return () => window.clearTimeout(timer);
   }, [status]);
 
-  const title = `${cardContent.displayName}｜${cardContent.heroTitle}`;
-
   const shareOrCopy = async () => {
     setIsPending(true);
 
     try {
-      const { shared, url } = await shareCardViaLiff(title);
+      const { shared, url } = await shareCardViaLiff();
 
       if (shared) {
         setStatus({ kind: "success", message: "已開啟 LINE 分享視窗" });
