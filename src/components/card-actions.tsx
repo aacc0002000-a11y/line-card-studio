@@ -1,7 +1,7 @@
 "use client";
 
 import { cardContent } from "@/data/card";
-import { shareCardViaLiff } from "@/lib/liff";
+import { getCleanShareUrl, shareCardViaLiff } from "@/lib/liff";
 import { useEffect, useState } from "react";
 
 type ActionStatus = {
@@ -52,13 +52,6 @@ function ActionLink({
 export function CardActions() {
   const [status, setStatus] = useState<ActionStatus>(null);
   const [isPending, setIsPending] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState(
-    process.env.NEXT_PUBLIC_SITE_URL || "",
-  );
-
-  useEffect(() => {
-    setCurrentUrl(window.location.href);
-  }, []);
 
   useEffect(() => {
     if (!status) {
@@ -76,14 +69,14 @@ export function CardActions() {
     setIsPending(true);
 
     try {
-      const shared = await shareCardViaLiff(currentUrl, title);
+      const { shared, url } = await shareCardViaLiff(title);
 
       if (shared) {
         setStatus({ kind: "success", message: "已開啟 LINE 分享視窗" });
         return;
       }
 
-      await copyText(currentUrl);
+      await copyText(url);
       setStatus({ kind: "success", message: "LIFF 不可用，已改為複製連結" });
     } catch {
       setStatus({ kind: "error", message: "分享失敗，請稍後再試" });
@@ -94,7 +87,9 @@ export function CardActions() {
 
   const copyLink = async () => {
     try {
-      await copyText(currentUrl);
+      const cleanUrl = await getCleanShareUrl();
+
+      await copyText(cleanUrl);
       setStatus({ kind: "success", message: "名片連結已複製" });
     } catch {
       setStatus({ kind: "error", message: "複製失敗，請手動複製網址" });
