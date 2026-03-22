@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { seoContent } from "@/data/card";
+import {
+  buildSeoContentFromCard,
+  getStaticFallbackCardData,
+} from "@/lib/card-normalize";
+
+const seoContent = buildSeoContentFromCard(getStaticFallbackCardData());
 
 export const metadata: Metadata = {
   metadataBase: new URL(

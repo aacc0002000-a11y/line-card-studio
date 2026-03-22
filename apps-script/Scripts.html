@@ -1,0 +1,212 @@
+<script>
+  var DEFAULT_CARD_ID = 'default-card';
+  var BUTTON_COUNT = 4;
+
+  /**
+   * 建立按鈕欄位畫面。
+   */
+  function renderButtonFields() {
+    var container = document.getElementById('button-fields');
+    var html = '';
+    var index;
+
+    for (index = 0; index < BUTTON_COUNT; index += 1) {
+      html +=
+        '<div class="button-card">' +
+        '<div class="button-card-title">按鈕 ' + (index + 1) + '</div>' +
+        '<label>文字<input id="button-label-' + index + '" type="text" placeholder="按鈕文字"></label>' +
+        '<label>網址<input id="button-url-' + index + '" type="text" placeholder="https:// 或 tel:"></label>' +
+        '<label class="button-toggle"><input id="button-enabled-' + index + '" type="checkbox">啟用這顆按鈕</label>' +
+        '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  /**
+   * 顯示目前系統訊息。
+   */
+  function showResult(data) {
+    document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+  }
+
+  /**
+   * 將後端卡片資料套進表單。
+   */
+  function applyAdminCard(card) {
+    document.getElementById('brandEn').value = card.brandEn || card.brandName || '';
+    document.getElementById('heroTitle').value = card.heroTitle || card.headline || '';
+    document.getElementById('displayName').value = card.displayName || card.subheadline || '';
+    document.getElementById('intro').value = card.intro || '';
+    document.getElementById('bullet1').value = card.bullet1 || '';
+    document.getElementById('bullet2').value = card.bullet2 || '';
+    document.getElementById('bullet3').value = card.bullet3 || '';
+    document.getElementById('photoUrl').value = card.photoUrl || '';
+    document.getElementById('themeColor').value = card.themeColor || '';
+    document.getElementById('accentColor').value = card.accentColor || '';
+    document.getElementById('buttonBgColor').value = card.buttonBgColor || '';
+    document.getElementById('buttonTextColor').value = card.buttonTextColor || '';
+    document.getElementById('isActive').checked = card.isActive !== false;
+
+    applyButtons(card.buttons || []);
+  }
+
+  /**
+   * 將按鈕資料填進表單。
+   */
+  function applyButtons(buttons) {
+    var index;
+
+    for (index = 0; index < BUTTON_COUNT; index += 1) {
+      var button = buttons[index] || {};
+
+      document.getElementById('button-label-' + index).value = button.label || '';
+      document.getElementById('button-url-' + index).value = button.url || '';
+      document.getElementById('button-enabled-' + index).checked =
+        button.isEnabled === true || button.is_enabled === true;
+    }
+  }
+
+  /**
+   * 收集表單資料並整理成後端可儲存格式。
+   */
+  function collectPayload() {
+    var buttons = [];
+    var index;
+
+    for (index = 0; index < BUTTON_COUNT; index += 1) {
+      buttons.push({
+        label: document.getElementById('button-label-' + index).value,
+        url: document.getElementById('button-url-' + index).value,
+        isEnabled: document.getElementById('button-enabled-' + index).checked
+      });
+    }
+
+    return {
+      cardId: DEFAULT_CARD_ID,
+      brandEn: document.getElementById('brandEn').value,
+      heroTitle: document.getElementById('heroTitle').value,
+      displayName: document.getElementById('displayName').value,
+      intro: document.getElementById('intro').value,
+      bullet1: document.getElementById('bullet1').value,
+      bullet2: document.getElementById('bullet2').value,
+      bullet3: document.getElementById('bullet3').value,
+      photoUrl: document.getElementById('photoUrl').value,
+      themeColor: document.getElementById('themeColor').value,
+      accentColor: document.getElementById('accentColor').value,
+      buttonBgColor: document.getElementById('buttonBgColor').value,
+      buttonTextColor: document.getElementById('buttonTextColor').value,
+      isActive: document.getElementById('isActive').checked,
+      buttons: buttons
+    };
+  }
+
+  /**
+   * 重新讀取 default 卡片資料。
+   */
+  function loadCardConfig() {
+    showResult({ message: '正在讀取 default 卡片資料...' });
+
+    google.script.run
+      .withSuccessHandler(function (response) {
+        if (response && response.card) {
+          applyAdminCard(response.card);
+        }
+        showResult(response);
+      })
+      .withFailureHandler(function (error) {
+        showResult({
+          ok: false,
+          message: '讀取資料失敗',
+          error: String(error)
+        });
+      })
+      .getAdminCardJson(DEFAULT_CARD_ID);
+  }
+
+  /**
+   * 初始化 Google Sheet schema。
+   */
+  function initializeSchema() {
+    showResult({ message: '正在初始化 Sheet schema...' });
+
+    google.script.run
+      .withSuccessHandler(function (response) {
+        showResult(response);
+      })
+      .withFailureHandler(function (error) {
+        showResult({
+          ok: false,
+          message: '初始化失敗',
+          error: String(error)
+        });
+      })
+      .initializeSheetSchema();
+  }
+
+  /**
+   * 建立 default 卡片預設資料。
+   */
+  function seedDefaultData() {
+    showResult({ message: '正在建立預設資料...' });
+
+    google.script.run
+      .withSuccessHandler(function (response) {
+        if (response && response.card && response.card.card) {
+          applyAdminCard(response.card.card);
+        } else if (response && response.card) {
+          applyAdminCard(response.card);
+        }
+        showResult(response);
+      })
+      .withFailureHandler(function (error) {
+        showResult({
+          ok: false,
+          message: '建立預設資料失敗',
+          error: String(error)
+        });
+      })
+      .seedDefaultCardData();
+  }
+
+  /**
+   * 儲存表單內容到 Google Sheet。
+   */
+  function saveForm(event) {
+    event.preventDefault();
+
+    var payload = collectPayload();
+    showResult({
+      message: '正在儲存到 Google Sheet...',
+      payload: payload
+    });
+
+    google.script.run
+      .withSuccessHandler(function (response) {
+        if (response && response.card) {
+          applyAdminCard(response.card);
+        }
+        showResult(response);
+        window.alert('儲存成功，已寫回 Google Sheet。');
+      })
+      .withFailureHandler(function (error) {
+        showResult({
+          ok: false,
+          message: '儲存失敗',
+          error: String(error)
+        });
+      })
+      .saveCardConfig(payload);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    renderButtonFields();
+
+    document.getElementById('init-button').addEventListener('click', initializeSchema);
+    document.getElementById('seed-button').addEventListener('click', seedDefaultData);
+    document.getElementById('load-button').addEventListener('click', loadCardConfig);
+    document.getElementById('card-form').addEventListener('submit', saveForm);
+
+    loadCardConfig();
+  });
+</script>

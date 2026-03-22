@@ -1,4 +1,8 @@
-import { cardContent } from "@/data/card";
+import {
+  getStaticFallbackCardData,
+  type CardButton,
+  type NormalizedCardData,
+} from "@/lib/card-normalize";
 
 const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
@@ -262,6 +266,45 @@ function buildSecondaryActionButton(label: string, uri: string) {
   };
 }
 
+function getShareCardData(card?: NormalizedCardData) {
+  return card || getStaticFallbackCardData();
+}
+
+function buildShareActionRows(
+  buttons: CardButton[],
+  cleanUrl: string,
+  primaryColor: string,
+) {
+  const normalizedButtons = buttons.filter((button) => button.label && button.url);
+  const effectiveButtons = normalizedButtons.length
+    ? normalizedButtons.slice(0, 4)
+    : [{ label: "查看完整電子名片", url: cleanUrl }];
+  const rows = [];
+
+  for (let index = 0; index < effectiveButtons.length; index += 2) {
+    const pair = effectiveButtons.slice(index, index + 2);
+    const contents = pair.map((button, pairIndex) => {
+      if (pairIndex % 2 === 0) {
+        return {
+          ...buildPrimaryActionButton(button.label, button.url),
+          color: primaryColor,
+        };
+      }
+
+      return buildSecondaryActionButton(button.label, button.url);
+    });
+
+    rows.push({
+      type: "box" as const,
+      layout: "horizontal" as const,
+      spacing: "sm" as const,
+      contents,
+    });
+  }
+
+  return rows;
+}
+
 function logSharePayload(
   mode: SharePayloadMode,
   messages: Parameters<LiffInstance["shareTargetPicker"]>[0],
@@ -440,12 +483,13 @@ export function buildShareTextMessage() {
   };
 }
 
-export async function buildMinimalFlexMessage() {
+export async function buildMinimalFlexMessage(cardData?: NormalizedCardData) {
+  const card = getShareCardData(cardData);
   const cleanUrl = await getCleanShareUrl();
 
   return {
     type: "flex" as const,
-    altText: "SHUANG MU LIN 電子名片",
+    altText: `${card.brandName} 電子名片`,
     contents: {
       type: "bubble" as const,
       body: {
@@ -455,15 +499,15 @@ export async function buildMinimalFlexMessage() {
         contents: [
           {
             type: "text" as const,
-            text: "SHUANG MU LIN",
+            text: card.brandName,
             size: "xs" as const,
-            color: "#0F766E",
+            color: card.accentColor,
             weight: "bold" as const,
             letterSpacing: "2px",
           },
           {
             type: "text" as const,
-            text: "讓LINE變會賺錢好員工",
+            text: card.headline,
             size: "xl" as const,
             weight: "bold" as const,
             color: "#172033",
@@ -471,7 +515,7 @@ export async function buildMinimalFlexMessage() {
           },
           {
             type: "text" as const,
-            text: "老闆營運的好夥伴－晏珊",
+            text: card.subheadline,
             size: "sm" as const,
             color: "#5F6B84",
             wrap: true,
@@ -486,7 +530,7 @@ export async function buildMinimalFlexMessage() {
           {
             type: "button" as const,
             style: "primary" as const,
-            color: "#0F766E",
+            color: card.buttonBgColor,
             action: {
               type: "uri" as const,
               label: "查看完整電子名片",
@@ -500,15 +544,16 @@ export async function buildMinimalFlexMessage() {
   };
 }
 
-export async function buildBusinessCardFlexMessage() {
+export async function buildBusinessCardFlexMessage(
+  cardData?: NormalizedCardData,
+) {
+  const card = getShareCardData(cardData);
   const cleanUrl = await getCleanShareUrl();
-  const summaryText =
-    "我是晏珊，專門協助老闆把 LINE 官方帳號＋營運流程，變成「會帶客、會回流」的好員工。";
-  const serviceBullets = cardContent.bullets.slice(0, 3);
+  const serviceBullets = card.bullets.slice(0, 3);
 
   return {
     type: "flex" as const,
-    altText: "雙木林電子名片",
+    altText: `${card.brandName} 電子名片`,
     contents: {
       type: "bubble" as const,
       header: {
@@ -517,7 +562,7 @@ export async function buildBusinessCardFlexMessage() {
         contents: [
           {
             type: "text" as const,
-            text: cardContent.brandEn,
+            text: card.brandName,
             size: "sm" as const,
             color: "#FFFFFF",
             weight: "bold" as const,
@@ -528,7 +573,7 @@ export async function buildBusinessCardFlexMessage() {
         paddingBottom: "14px",
         paddingStart: "20px",
         paddingEnd: "20px",
-        backgroundColor: "#0F766E",
+        backgroundColor: card.accentColor,
       },
       body: {
         type: "box" as const,
@@ -553,10 +598,10 @@ export async function buildBusinessCardFlexMessage() {
                 contents: [
                   {
                     type: "text" as const,
-                    text: "晏",
+                    text: card.brandName.slice(0, 1) || "名",
                     size: "lg" as const,
                     weight: "bold" as const,
-                    color: "#0F766E",
+                    color: card.accentColor,
                     align: "center" as const,
                   },
                 ],
@@ -569,7 +614,7 @@ export async function buildBusinessCardFlexMessage() {
                 contents: [
                   {
                     type: "text" as const,
-                    text: cardContent.heroTitle,
+                    text: card.headline,
                     size: "xl" as const,
                     weight: "bold" as const,
                     color: "#172033",
@@ -577,7 +622,7 @@ export async function buildBusinessCardFlexMessage() {
                   },
                   {
                     type: "text" as const,
-                    text: cardContent.displayName,
+                    text: card.subheadline,
                     size: "sm" as const,
                     color: "#5F6B84",
                     wrap: true,
@@ -592,7 +637,7 @@ export async function buildBusinessCardFlexMessage() {
           },
           {
             type: "text" as const,
-            text: summaryText,
+            text: card.intro,
             size: "sm" as const,
             color: "#172033",
             wrap: true,
@@ -615,7 +660,7 @@ export async function buildBusinessCardFlexMessage() {
                   width: "16px",
                   height: "16px",
                   cornerRadius: "8px",
-                  backgroundColor: "#0F766E",
+                  backgroundColor: card.accentColor,
                   margin: "xs" as const,
                   flex: 0,
                   contents: [],
@@ -642,7 +687,7 @@ export async function buildBusinessCardFlexMessage() {
           {
             type: "button" as const,
             style: "primary" as const,
-            color: "#0F766E",
+            color: card.buttonBgColor,
             action: {
               type: "uri" as const,
               label: "查看完整電子名片",
@@ -655,8 +700,8 @@ export async function buildBusinessCardFlexMessage() {
             color: "#EFF3F8",
             action: {
               type: "uri" as const,
-              label: "前往 LINE 官方一探究竟",
-              uri: cardContent.links.lineUrl,
+              label: card.buttons[0]?.label || "前往更多資訊",
+              uri: card.buttons[0]?.url || cleanUrl,
             },
           },
         ],
@@ -668,15 +713,16 @@ export async function buildBusinessCardFlexMessage() {
   };
 }
 
-export async function buildRefinedSafeBusinessCardFlexMessage() {
+export async function buildRefinedSafeBusinessCardFlexMessage(
+  cardData?: NormalizedCardData,
+) {
+  const card = getShareCardData(cardData);
   const cleanUrl = await getCleanShareUrl();
-  const summaryText =
-    "我是晏珊，專門協助老闆把 LINE 官方帳號＋營運流程，變成「會帶客、會回流」的好員工。";
-  const serviceBullets = cardContent.bullets.slice(0, 3);
+  const serviceBullets = card.bullets.slice(0, 3);
 
   return {
     type: "flex" as const,
-    altText: "雙木林電子名片",
+    altText: `${card.brandName} 電子名片`,
     contents: {
       type: "bubble" as const,
       header: {
@@ -685,7 +731,7 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
         contents: [
           {
             type: "text" as const,
-            text: cardContent.brandEn,
+            text: card.brandName,
             size: "sm" as const,
             color: "#FFFFFF",
             weight: "bold" as const,
@@ -696,7 +742,7 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
         paddingBottom: "14px",
         paddingStart: "20px",
         paddingEnd: "20px",
-        backgroundColor: "#0F766E",
+        backgroundColor: card.accentColor,
       },
       body: {
         type: "box" as const,
@@ -721,10 +767,10 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
                 contents: [
                   {
                     type: "text" as const,
-                    text: "晏",
+                    text: card.brandName.slice(0, 1) || "名",
                     size: "lg" as const,
                     weight: "bold" as const,
-                    color: "#0F766E",
+                    color: card.accentColor,
                     align: "center" as const,
                   },
                 ],
@@ -737,7 +783,7 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
                 contents: [
                   {
                     type: "text" as const,
-                    text: cardContent.heroTitle,
+                    text: card.headline,
                     size: "xl" as const,
                     weight: "bold" as const,
                     color: "#172033",
@@ -745,7 +791,7 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
                   },
                   {
                     type: "text" as const,
-                    text: cardContent.displayName,
+                    text: card.subheadline,
                     size: "sm" as const,
                     color: "#5F6B84",
                     wrap: true,
@@ -764,7 +810,7 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
             contents: [
               {
                 type: "text" as const,
-                text: summaryText,
+                text: card.intro,
                 size: "sm" as const,
                 color: "#172033",
                 wrap: true,
@@ -789,7 +835,7 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
                   width: "16px",
                   height: "16px",
                   cornerRadius: "8px",
-                  backgroundColor: "#0F766E",
+                  backgroundColor: card.accentColor,
                   margin: "xs" as const,
                   flex: 0,
                   contents: [],
@@ -817,7 +863,7 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
           {
             type: "button" as const,
             style: "primary" as const,
-            color: "#0F766E",
+            color: card.buttonBgColor,
             action: {
               type: "uri" as const,
               label: "查看完整電子名片",
@@ -830,8 +876,8 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
             color: "#EFF3F8",
             action: {
               type: "uri" as const,
-              label: "前往 LINE 官方一探究竟",
-              uri: cardContent.links.lineUrl,
+              label: card.buttons[0]?.label || "前往更多資訊",
+              uri: card.buttons[0]?.url || cleanUrl,
             },
           },
         ],
@@ -842,16 +888,17 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
   };
 }
 
-export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
+export async function buildPhotoAnd4CtaBusinessCardFlexMessage(
+  cardData?: NormalizedCardData,
+) {
+  const card = getShareCardData(cardData);
   const cleanUrl = await getCleanShareUrl();
-  const shareImageUrl = getShareAssetUrl(cardContent.shareCardImageSrc);
-  const summaryText =
-    "我是晏珊，專門協助老闆把 LINE 官方帳號＋營運流程，變成「會帶客、會回流」的好員工。";
-  const serviceBullets = cardContent.bullets.slice(0, 3);
+  const shareImageUrl = getShareAssetUrl(card.shareImageUrl || card.photoUrl);
+  const serviceBullets = card.bullets.slice(0, 3);
 
   return {
     type: "flex" as const,
-    altText: "雙木林電子名片",
+    altText: `${card.brandName} 電子名片`,
     contents: {
       type: "bubble" as const,
       ...(shareImageUrl
@@ -865,7 +912,7 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
               backgroundColor: "#EAF4F1",
               action: {
                 type: "uri" as const,
-                label: cardContent.shareButtons.fullCard.label,
+                label: "查看完整電子名片",
                 uri: cleanUrl,
               },
             },
@@ -878,15 +925,15 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
         contents: [
           {
             type: "text" as const,
-            text: cardContent.brandEn,
+            text: card.brandName,
             size: "sm" as const,
-            color: "#0F766E",
+            color: card.accentColor,
             weight: "bold" as const,
             wrap: true,
           },
           {
             type: "text" as const,
-            text: cardContent.heroTitle,
+            text: card.headline,
             size: "xl" as const,
             weight: "bold" as const,
             color: "#172033",
@@ -894,7 +941,7 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
           },
           {
             type: "text" as const,
-            text: cardContent.displayName,
+            text: card.subheadline,
             size: "sm" as const,
             color: "#5F6B84",
             wrap: true,
@@ -909,7 +956,7 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
             contents: [
               {
                 type: "text" as const,
-                text: summaryText,
+                text: card.intro,
                 size: "sm" as const,
                 color: "#172033",
                 wrap: true,
@@ -934,7 +981,7 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
                   width: "16px",
                   height: "16px",
                   cornerRadius: "8px",
-                  backgroundColor: "#0F766E",
+                  backgroundColor: card.accentColor,
                   margin: "xs" as const,
                   flex: 0,
                   contents: [],
@@ -958,38 +1005,11 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
         type: "box" as const,
         layout: "vertical" as const,
         spacing: "sm" as const,
-        contents: [
-          {
-            type: "box" as const,
-            layout: "horizontal" as const,
-            spacing: "sm" as const,
-            contents: [
-              buildPrimaryActionButton(
-                cardContent.shareButtons.lineOfficial.label,
-                cardContent.shareButtons.lineOfficial.uri,
-              ),
-              buildSecondaryActionButton(
-                cardContent.shareButtons.fullCard.label,
-                cleanUrl,
-              ),
-            ],
-          },
-          {
-            type: "box" as const,
-            layout: "horizontal" as const,
-            spacing: "sm" as const,
-            contents: [
-              buildSecondaryActionButton(
-                cardContent.shareButtons.moreInfo.label,
-                cleanUrl,
-              ),
-              buildPrimaryActionButton(
-                cardContent.shareButtons.learnNow.label,
-                cleanUrl,
-              ),
-            ],
-          },
-        ],
+        contents: buildShareActionRows(
+          card.buttons,
+          cleanUrl,
+          card.buttonBgColor,
+        ),
         paddingTop: "0px",
         paddingBottom: "20px",
         paddingStart: "20px",
@@ -1000,17 +1020,17 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
   };
 }
 
-export async function buildShareCardMessages() {
+export async function buildShareCardMessages(cardData?: NormalizedCardData) {
   try {
     const flexMessage =
       SHARE_PAYLOAD_MODE === "minimal_bubble" ||
       SHARE_PAYLOAD_MODE === "text_and_minimal_flex"
-        ? await buildMinimalFlexMessage()
-      : SHARE_PAYLOAD_MODE === "photo_and_4cta_business_card_bubble"
-        ? await buildPhotoAnd4CtaBusinessCardFlexMessage()
-      : SHARE_PAYLOAD_MODE === "enhanced_business_card_bubble"
-        ? await buildBusinessCardFlexMessage()
-        : await buildRefinedSafeBusinessCardFlexMessage();
+        ? await buildMinimalFlexMessage(cardData)
+        : SHARE_PAYLOAD_MODE === "photo_and_4cta_business_card_bubble"
+          ? await buildPhotoAnd4CtaBusinessCardFlexMessage(cardData)
+          : SHARE_PAYLOAD_MODE === "enhanced_business_card_bubble"
+            ? await buildBusinessCardFlexMessage(cardData)
+            : await buildRefinedSafeBusinessCardFlexMessage(cardData);
 
     if (SHARE_PAYLOAD_MODE === "flex_only") {
       return [flexMessage] as const;
@@ -1107,7 +1127,9 @@ export async function shareMinimalFlexViaLiff(): Promise<ShareExecutionResult> {
   return shareMessages([minimalFlexMessage]);
 }
 
-export async function shareCardViaLiff(): Promise<ShareExecutionResult> {
-  const messages = await buildShareCardMessages();
+export async function shareCardViaLiff(
+  cardData?: NormalizedCardData,
+): Promise<ShareExecutionResult> {
+  const messages = await buildShareCardMessages(cardData);
   return shareMessages([...messages]);
 }

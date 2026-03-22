@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= pageTitle ?></title>
+    <?!= include_('Styles'); ?>
+  </head>
+  <body>
+    <main class="page">
+      <section class="panel">
+        <div class="panel-header">
+          <p class="eyebrow">Google Apps Script CMS</p>
+          <h1>LINE Card CMS 後台</h1>
+          <p class="description">
+            先初始化 Sheet，再載入與編輯 default 卡片資料。這一版先專注於穩定可用。
+          </p>
+        </div>
+
+        <div class="toolbar">
+          <button id="init-button" type="button" class="button button-secondary">初始化 Sheet</button>
+          <button id="seed-button" type="button" class="button button-secondary">建立預設資料</button>
+          <button id="load-button" type="button" class="button button-secondary">重新載入資料</button>
+        </div>
+
+        <form id="card-form" class="form">
+          <div class="field-grid">
+            <label class="field">
+              <span>brandEn</span>
+              <input id="brandEn" name="brandEn" type="text" placeholder="例如：SHUANG MU LIN">
+            </label>
+            <label class="field">
+              <span>heroTitle</span>
+              <input id="heroTitle" name="heroTitle" type="text" placeholder="例如：讓LINE變會賺錢好員工">
+            </label>
+            <label class="field">
+              <span>displayName</span>
+              <input id="displayName" name="displayName" type="text" placeholder="例如：老闆營運的好夥伴－晏珊">
+            </label>
+            <label class="field">
+              <span>photo_url</span>
+              <input id="photoUrl" name="photoUrl" type="text" placeholder="例如：https://... 或 /card-photo-placeholder.svg">
+            </label>
+          </div>
+
+          <label class="field">
+            <span>自介</span>
+            <textarea id="intro" name="intro" rows="5" placeholder="請輸入自我介紹"></textarea>
+          </label>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Bullet 1</span>
+              <input id="bullet1" name="bullet1" type="text" placeholder="第一條重點">
+            </label>
+            <label class="field">
+              <span>Bullet 2</span>
+              <input id="bullet2" name="bullet2" type="text" placeholder="第二條重點">
+            </label>
+            <label class="field">
+              <span>Bullet 3</span>
+              <input id="bullet3" name="bullet3" type="text" placeholder="第三條重點">
+            </label>
+            <label class="field field-checkbox">
+              <span>是否啟用</span>
+              <input id="isActive" name="isActive" type="checkbox" checked>
+            </label>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>主色</span>
+              <input id="themeColor" name="themeColor" type="text" placeholder="#172033">
+            </label>
+            <label class="field">
+              <span>強調色</span>
+              <input id="accentColor" name="accentColor" type="text" placeholder="#0F766E">
+            </label>
+            <label class="field">
+              <span>按鈕底色</span>
+              <input id="buttonBgColor" name="buttonBgColor" type="text" placeholder="#0F766E">
+            </label>
+            <label class="field">
+              <span>按鈕文字色</span>
+              <input id="buttonTextColor" name="buttonTextColor" type="text" placeholder="#FFFFFF">
+            </label>
+          </div>
+
+          <section class="subsection">
+            <h2>按鈕設定（最多 4 顆）</h2>
+            <div id="button-fields" class="button-grid"></div>
+          </section>
+
+          <div class="actions">
+            <button id="save-button" type="submit" class="button button-primary">儲存到 Google Sheet</button>
+          </div>
+        </form>
+
+        <section class="result-panel">
+          <h2>系統訊息</h2>
+          <pre id="result">尚未執行任何操作。</pre>
+        </section>
+      </section>
+    </main>
+
+    <?!= include_('Scripts'); ?>
+  </body>
+</html>

@@ -1,11 +1,12 @@
 "use client";
 
-import { cardContent } from "@/data/card";
 import {
   getCleanShareUrl,
   inspectLiffShareAvailability,
   shareCardViaLiff,
 } from "@/lib/liff";
+import type { NormalizedCardData } from "@/lib/card-normalize";
+import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 
 type ActionStatus = {
@@ -18,10 +19,6 @@ type ShareMode = {
   fallbackToCopy: boolean;
   reason?: string;
 };
-
-function phoneHref(phone: string) {
-  return `tel:${phone.replace(/\s+/g, "")}`;
-}
 
 async function copyText(text: string) {
   if (navigator.clipboard?.writeText) {
@@ -43,23 +40,34 @@ async function copyText(text: string) {
 function ActionLink({
   href,
   label,
+  accentColor,
 }: {
   href: string;
   label: string;
+  accentColor: string;
 }) {
   return (
     <a
       href={href}
       target={href.startsWith("tel:") ? undefined : "_blank"}
       rel={href.startsWith("tel:") ? undefined : "noreferrer"}
-      className="flex min-h-12 items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 text-center text-sm font-medium text-foreground shadow-sm hover:-translate-y-0.5 hover:border-accent hover:text-accent"
+      className="flex min-h-12 items-center justify-center rounded-2xl border border-line bg-card px-4 py-3 text-center text-sm font-medium text-foreground shadow-sm hover:-translate-y-0.5"
+      style={
+        {
+          "--link-accent": accentColor,
+        } as CSSProperties
+      }
     >
       {label}
     </a>
   );
 }
 
-export function CardActions() {
+export function CardActions({
+  card,
+}: {
+  card: NormalizedCardData;
+}) {
   const [status, setStatus] = useState<ActionStatus>(null);
   const [isPending, setIsPending] = useState(false);
   const [isInitializingShare, setIsInitializingShare] = useState(true);
@@ -127,7 +135,7 @@ export function CardActions() {
 
     try {
       if (shareMode.ready) {
-        const { status, reason } = await shareCardViaLiff();
+        const { status, reason } = await shareCardViaLiff(card);
 
         if (status === "success") {
           setStatus({ kind: "success", message: "LINE 電子名片已成功分享" });
@@ -187,20 +195,25 @@ export function CardActions() {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <ActionLink
-          href={cardContent.links.lineUrl}
-          label="前往 LINE 官方一探究竟"
-        />
-        <ActionLink href={cardContent.links.wechatUrl} label="Wechat" />
-        <ActionLink href={cardContent.links.facebookUrl} label="Facebook" />
-        <ActionLink href={phoneHref(cardContent.links.phone)} label="Phone" />
+        {card.buttons.map((button) => (
+          <ActionLink
+            key={`${button.label}-${button.url}`}
+            href={button.url}
+            label={button.label}
+            accentColor={card.accentColor}
+          />
+        ))}
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button
           type="button"
           onClick={shareOrCopy}
           disabled={isPending || isInitializingShare}
-          className="min-h-12 rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm hover:-translate-y-0.5 hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70"
+          className="min-h-12 rounded-2xl px-4 py-3 text-sm font-semibold shadow-sm hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
+          style={{
+            backgroundColor: card.buttonBgColor,
+            color: card.buttonTextColor,
+          }}
         >
           {isPending
             ? "處理中..."
@@ -213,7 +226,11 @@ export function CardActions() {
         <button
           type="button"
           onClick={copyLink}
-          className="min-h-12 rounded-2xl border border-line bg-accent-soft px-4 py-3 text-sm font-semibold text-accent hover:-translate-y-0.5 hover:border-accent"
+          className="min-h-12 rounded-2xl border border-line bg-accent-soft px-4 py-3 text-sm font-semibold hover:-translate-y-0.5"
+          style={{
+            color: card.accentColor,
+            borderColor: card.accentColor,
+          }}
         >
           複製名片連結
         </button>

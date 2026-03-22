@@ -49,6 +49,11 @@ button {
     transform 0.2s ease;
 }
 
+a:hover {
+  border-color: var(--link-accent, var(--color-accent));
+  color: var(--link-accent, var(--color-accent));
+}
+
 ::selection {
   background: #d7ece8;
   color: #172033;

@@ -1,0 +1,240 @@
+<style>
+  :root {
+    --bg: #f5f1e8;
+    --panel: #fffdf8;
+    --border: #d7c8ad;
+    --text: #2f261b;
+    --muted: #6b5d4b;
+    --primary: #2d6a4f;
+    --primary-hover: #245640;
+    --secondary: #efe4d1;
+    --shadow: 0 20px 45px rgba(47, 38, 27, 0.08);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Noto Sans TC", sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(255, 255, 255, 0.9), transparent 35%),
+      linear-gradient(180deg, #f8f3ea 0%, #efe5d3 100%);
+    color: var(--text);
+  }
+
+  .page {
+    min-height: 100vh;
+    padding: 32px 16px;
+  }
+
+  .panel {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 28px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .panel-header {
+    margin-bottom: 20px;
+  }
+
+  .eyebrow {
+    margin: 0 0 8px;
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  h1,
+  h2 {
+    margin: 0;
+  }
+
+  h1 {
+    font-size: 30px;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .description {
+    margin: 12px 0 0;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  .toolbar,
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .toolbar {
+    margin-bottom: 20px;
+  }
+
+  .form {
+    display: grid;
+    gap: 18px;
+  }
+
+  .field-grid,
+  .button-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .button-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .field,
+  .button-card {
+    display: grid;
+    gap: 8px;
+  }
+
+  .field {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .field input,
+  .field textarea,
+  .button-card input {
+    width: 100%;
+    padding: 12px 14px;
+    font: inherit;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .field textarea {
+    resize: vertical;
+    min-height: 120px;
+  }
+
+  .field-checkbox {
+    align-content: end;
+  }
+
+  .field-checkbox input {
+    width: 20px;
+    height: 20px;
+    padding: 0;
+  }
+
+  .subsection {
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: #fbf7f0;
+  }
+
+  .button-card {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: #fff;
+  }
+
+  .button-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .button-card label {
+    display: grid;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .button-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+  }
+
+  .button {
+    appearance: none;
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 18px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .button-primary {
+    color: #fff;
+    background: var(--primary);
+  }
+
+  .button-primary:hover {
+    background: var(--primary-hover);
+  }
+
+  .button-secondary {
+    color: var(--text);
+    background: var(--secondary);
+  }
+
+  .result-panel {
+    margin-top: 24px;
+    padding: 20px;
+    border-radius: 16px;
+    background: #fbf7f0;
+    border: 1px solid var(--border);
+  }
+
+  #result {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
+  @media (max-width: 720px) {
+    .page {
+      padding: 20px 12px;
+    }
+
+    .panel {
+      padding: 20px;
+      border-radius: 16px;
+    }
+
+    .field-grid,
+    .button-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .toolbar,
+    .actions {
+      flex-direction: column;
+    }
+
+    .button {
+      width: 100%;
+    }
+  }
+</style>
