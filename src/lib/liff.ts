@@ -4,16 +4,15 @@ const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 type LiffInstance = (typeof import("@line/liff"))["default"];
 type ShareResult = Awaited<ReturnType<LiffInstance["shareTargetPicker"]>>;
-const SHARE_CARD_IMAGE_SRC = "/share-card-image.svg";
 
 type SharePayloadMode =
-  | "image_and_full_bubble"
-  | "image_and_minimal_bubble"
+  | "enhanced_business_card_bubble"
+  | "minimal_bubble"
   | "flex_only"
   | "text_and_minimal_flex";
-// Switch to "image_and_minimal_bubble", "flex_only", or
-// "text_and_minimal_flex" for targeted debugging and quick rollback.
-const SHARE_PAYLOAD_MODE: SharePayloadMode = "image_and_full_bubble";
+// Switch to "minimal_bubble", "flex_only", or "text_and_minimal_flex"
+// for targeted debugging and quick rollback.
+const SHARE_PAYLOAD_MODE: SharePayloadMode = "enhanced_business_card_bubble";
 
 export type LiffDiagnostics = {
   currentUrl: string;
@@ -207,14 +206,6 @@ function getBaseUrl() {
   return sanitizeUrl(getOriginAndPathnameUrl()) || getOriginAndPathnameUrl();
 }
 
-function toAbsoluteUrl(pathOrUrl: string, baseUrl: string) {
-  try {
-    return new URL(pathOrUrl, baseUrl).toString();
-  } catch {
-    return baseUrl;
-  }
-}
-
 function logSharePayload(
   mode: SharePayloadMode,
   messages: Parameters<LiffInstance["shareTargetPicker"]>[0],
@@ -393,18 +384,6 @@ export function buildShareTextMessage() {
   };
 }
 
-export async function buildShareImageMessage() {
-  const cleanUrl = await getCleanShareUrl();
-  const baseUrl = getBaseUrl() || cleanUrl;
-  const imageUrl = toAbsoluteUrl(SHARE_CARD_IMAGE_SRC, baseUrl);
-
-  return {
-    type: "image" as const,
-    originalContentUrl: imageUrl,
-    previewImageUrl: imageUrl,
-  };
-}
-
 export async function buildMinimalFlexMessage() {
   const cleanUrl = await getCleanShareUrl();
 
@@ -467,7 +446,8 @@ export async function buildMinimalFlexMessage() {
 
 export async function buildBusinessCardFlexMessage() {
   const cleanUrl = await getCleanShareUrl();
-  const summaryText = `${cardContent.intro.split("。")[0]}。`;
+  const summaryText =
+    "我是晏珊，專門協助老闆把 LINE 官方帳號＋營運流程，變成「會帶客、會回流」的好員工。";
   const serviceBullets = cardContent.bullets.slice(0, 3);
 
   return {
@@ -488,7 +468,10 @@ export async function buildBusinessCardFlexMessage() {
             wrap: true,
           },
         ],
-        paddingAll: "16px",
+        paddingTop: "14px",
+        paddingBottom: "14px",
+        paddingStart: "20px",
+        paddingEnd: "20px",
         backgroundColor: "#0F766E",
       },
       body: {
@@ -497,19 +480,55 @@ export async function buildBusinessCardFlexMessage() {
         spacing: "md" as const,
         contents: [
           {
-            type: "text" as const,
-            text: cardContent.heroTitle,
-            size: "xl" as const,
-            weight: "bold" as const,
-            color: "#172033",
-            wrap: true,
-          },
-          {
-            type: "text" as const,
-            text: cardContent.displayName,
-            size: "sm" as const,
-            color: "#5F6B84",
-            wrap: true,
+            type: "box" as const,
+            layout: "horizontal" as const,
+            spacing: "md" as const,
+            contents: [
+              {
+                type: "box" as const,
+                layout: "vertical" as const,
+                width: "56px",
+                height: "56px",
+                cornerRadius: "28px",
+                backgroundColor: "#E6F3F1",
+                justifyContent: "center" as const,
+                alignItems: "center" as const,
+                flex: 0,
+                contents: [
+                  {
+                    type: "text" as const,
+                    text: "晏",
+                    size: "lg" as const,
+                    weight: "bold" as const,
+                    color: "#0F766E",
+                    align: "center" as const,
+                  },
+                ],
+              },
+              {
+                type: "box" as const,
+                layout: "vertical" as const,
+                spacing: "sm" as const,
+                flex: 1,
+                contents: [
+                  {
+                    type: "text" as const,
+                    text: cardContent.heroTitle,
+                    size: "xl" as const,
+                    weight: "bold" as const,
+                    color: "#172033",
+                    wrap: true,
+                  },
+                  {
+                    type: "text" as const,
+                    text: cardContent.displayName,
+                    size: "sm" as const,
+                    color: "#5F6B84",
+                    wrap: true,
+                  },
+                ],
+              },
+            ],
           },
           {
             type: "separator" as const,
@@ -528,15 +547,22 @@ export async function buildBusinessCardFlexMessage() {
             spacing: "sm" as const,
             contents: serviceBullets.map((bullet) => ({
               type: "box" as const,
-              layout: "baseline" as const,
+              layout: "horizontal" as const,
               spacing: "sm" as const,
+              paddingAll: "12px",
+              cornerRadius: "14px",
+              backgroundColor: "#F8FAFC",
               contents: [
                 {
-                  type: "text" as const,
-                  text: "•",
-                  size: "sm" as const,
-                  color: "#0F766E",
+                  type: "box" as const,
+                  layout: "vertical" as const,
+                  width: "16px",
+                  height: "16px",
+                  cornerRadius: "8px",
+                  backgroundColor: "#0F766E",
+                  margin: "xs" as const,
                   flex: 0,
+                  contents: [],
                 },
                 {
                   type: "text" as const,
@@ -570,6 +596,7 @@ export async function buildBusinessCardFlexMessage() {
           {
             type: "button" as const,
             style: "secondary" as const,
+            color: "#EFF3F8",
             action: {
               type: "uri" as const,
               label: "前往 LINE 官方一探究竟",
@@ -588,7 +615,7 @@ export async function buildBusinessCardFlexMessage() {
 export async function buildShareCardMessages() {
   try {
     const flexMessage =
-      SHARE_PAYLOAD_MODE === "image_and_minimal_bubble" ||
+      SHARE_PAYLOAD_MODE === "minimal_bubble" ||
       SHARE_PAYLOAD_MODE === "text_and_minimal_flex"
         ? await buildMinimalFlexMessage()
         : await buildBusinessCardFlexMessage();
@@ -607,8 +634,7 @@ export async function buildShareCardMessages() {
       ] as const;
     }
 
-    const imageMessage = await buildShareImageMessage();
-    return [imageMessage, flexMessage] as const;
+    return [flexMessage] as const;
   } catch (error) {
     console.error("Failed to build share card messages", error);
     throw error;
@@ -682,11 +708,6 @@ async function shareMessages(
 
 export async function shareTextViaLiff(): Promise<ShareExecutionResult> {
   return shareMessages([buildShareTextMessage()]);
-}
-
-export async function shareImageViaLiff(): Promise<ShareExecutionResult> {
-  const imageMessage = await buildShareImageMessage();
-  return shareMessages([imageMessage]);
 }
 
 export async function shareMinimalFlexViaLiff(): Promise<ShareExecutionResult> {
