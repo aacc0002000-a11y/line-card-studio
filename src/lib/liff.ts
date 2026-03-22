@@ -8,13 +8,15 @@ type ShareResult = Awaited<ReturnType<LiffInstance["shareTargetPicker"]>>;
 type SharePayloadMode =
   | "refined_safe_business_card_bubble"
   | "enhanced_business_card_bubble"
+  | "photo_and_4cta_business_card_bubble"
   | "minimal_bubble"
   | "flex_only"
   | "text_and_minimal_flex";
 // Default stays on the last known good version. Switch to
-// "refined_safe_business_card_bubble", "minimal_bubble", "flex_only", or
-// "text_and_minimal_flex" only for controlled iteration and rollback.
-const SHARE_PAYLOAD_MODE: SharePayloadMode = "enhanced_business_card_bubble";
+// "enhanced_business_card_bubble", "refined_safe_business_card_bubble",
+// "minimal_bubble", "flex_only", or "text_and_minimal_flex" for rollback.
+const SHARE_PAYLOAD_MODE: SharePayloadMode =
+  "photo_and_4cta_business_card_bubble";
 
 export type LiffDiagnostics = {
   currentUrl: string;
@@ -206,6 +208,58 @@ function getBaseUrl() {
   }
 
   return sanitizeUrl(getOriginAndPathnameUrl()) || getOriginAndPathnameUrl();
+}
+
+function getShareAssetUrl(assetPath: string) {
+  if (!assetPath) {
+    return "";
+  }
+
+  if (/^https:\/\//i.test(assetPath)) {
+    return sanitizeUrl(assetPath) || assetPath;
+  }
+
+  const baseUrl = getBaseUrl();
+
+  if (!baseUrl) {
+    return "";
+  }
+
+  try {
+    return new URL(assetPath, baseUrl).toString();
+  } catch {
+    return "";
+  }
+}
+
+function buildPrimaryActionButton(label: string, uri: string) {
+  return {
+    type: "button" as const,
+    style: "primary" as const,
+    color: "#0F766E",
+    flex: 1,
+    height: "sm" as const,
+    action: {
+      type: "uri" as const,
+      label,
+      uri,
+    },
+  };
+}
+
+function buildSecondaryActionButton(label: string, uri: string) {
+  return {
+    type: "button" as const,
+    style: "secondary" as const,
+    color: "#EFF5F2",
+    flex: 1,
+    height: "sm" as const,
+    action: {
+      type: "uri" as const,
+      label,
+      uri,
+    },
+  };
 }
 
 function logSharePayload(
@@ -788,12 +842,172 @@ export async function buildRefinedSafeBusinessCardFlexMessage() {
   };
 }
 
+export async function buildPhotoAnd4CtaBusinessCardFlexMessage() {
+  const cleanUrl = await getCleanShareUrl();
+  const shareImageUrl = getShareAssetUrl(cardContent.shareCardImageSrc);
+  const summaryText =
+    "我是晏珊，專門協助老闆把 LINE 官方帳號＋營運流程，變成「會帶客、會回流」的好員工。";
+  const serviceBullets = cardContent.bullets.slice(0, 3);
+
+  return {
+    type: "flex" as const,
+    altText: "雙木林電子名片",
+    contents: {
+      type: "bubble" as const,
+      ...(shareImageUrl
+        ? {
+            hero: {
+              type: "image" as const,
+              url: shareImageUrl,
+              size: "full" as const,
+              aspectRatio: "5:3",
+              aspectMode: "cover" as const,
+              backgroundColor: "#EAF4F1",
+              action: {
+                type: "uri" as const,
+                label: cardContent.shareButtons.fullCard.label,
+                uri: cleanUrl,
+              },
+            },
+          }
+        : {}),
+      body: {
+        type: "box" as const,
+        layout: "vertical" as const,
+        spacing: "md" as const,
+        contents: [
+          {
+            type: "text" as const,
+            text: cardContent.brandEn,
+            size: "sm" as const,
+            color: "#0F766E",
+            weight: "bold" as const,
+            wrap: true,
+          },
+          {
+            type: "text" as const,
+            text: cardContent.heroTitle,
+            size: "xl" as const,
+            weight: "bold" as const,
+            color: "#172033",
+            wrap: true,
+          },
+          {
+            type: "text" as const,
+            text: cardContent.displayName,
+            size: "sm" as const,
+            color: "#5F6B84",
+            wrap: true,
+          },
+          {
+            type: "box" as const,
+            layout: "vertical" as const,
+            spacing: "sm" as const,
+            paddingAll: "14px",
+            cornerRadius: "14px",
+            backgroundColor: "#F5F8FC",
+            contents: [
+              {
+                type: "text" as const,
+                text: summaryText,
+                size: "sm" as const,
+                color: "#172033",
+                wrap: true,
+              },
+            ],
+          },
+          {
+            type: "box" as const,
+            layout: "vertical" as const,
+            spacing: "sm" as const,
+            contents: serviceBullets.map((bullet) => ({
+              type: "box" as const,
+              layout: "horizontal" as const,
+              spacing: "sm" as const,
+              paddingAll: "12px",
+              cornerRadius: "14px",
+              backgroundColor: "#F8FAFC",
+              contents: [
+                {
+                  type: "box" as const,
+                  layout: "vertical" as const,
+                  width: "16px",
+                  height: "16px",
+                  cornerRadius: "8px",
+                  backgroundColor: "#0F766E",
+                  margin: "xs" as const,
+                  flex: 0,
+                  contents: [],
+                },
+                {
+                  type: "text" as const,
+                  text: bullet,
+                  size: "sm" as const,
+                  color: "#172033",
+                  wrap: true,
+                  flex: 1,
+                },
+              ],
+            })),
+          },
+        ],
+        paddingAll: "20px",
+        backgroundColor: "#FFFFFF",
+      },
+      footer: {
+        type: "box" as const,
+        layout: "vertical" as const,
+        spacing: "sm" as const,
+        contents: [
+          {
+            type: "box" as const,
+            layout: "horizontal" as const,
+            spacing: "sm" as const,
+            contents: [
+              buildPrimaryActionButton(
+                cardContent.shareButtons.lineOfficial.label,
+                cardContent.shareButtons.lineOfficial.uri,
+              ),
+              buildSecondaryActionButton(
+                cardContent.shareButtons.fullCard.label,
+                cleanUrl,
+              ),
+            ],
+          },
+          {
+            type: "box" as const,
+            layout: "horizontal" as const,
+            spacing: "sm" as const,
+            contents: [
+              buildSecondaryActionButton(
+                cardContent.shareButtons.moreInfo.label,
+                cleanUrl,
+              ),
+              buildPrimaryActionButton(
+                cardContent.shareButtons.learnNow.label,
+                cleanUrl,
+              ),
+            ],
+          },
+        ],
+        paddingTop: "0px",
+        paddingBottom: "20px",
+        paddingStart: "20px",
+        paddingEnd: "20px",
+        backgroundColor: "#FFFFFF",
+      },
+    },
+  };
+}
+
 export async function buildShareCardMessages() {
   try {
     const flexMessage =
       SHARE_PAYLOAD_MODE === "minimal_bubble" ||
       SHARE_PAYLOAD_MODE === "text_and_minimal_flex"
         ? await buildMinimalFlexMessage()
+      : SHARE_PAYLOAD_MODE === "photo_and_4cta_business_card_bubble"
+        ? await buildPhotoAnd4CtaBusinessCardFlexMessage()
       : SHARE_PAYLOAD_MODE === "enhanced_business_card_bubble"
         ? await buildBusinessCardFlexMessage()
         : await buildRefinedSafeBusinessCardFlexMessage();

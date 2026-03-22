@@ -1,0 +1,17 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="720" fill="#EAF4F1"/>
+  <rect x="60" y="52" width="1080" height="616" rx="48" fill="url(#paint0_linear_1_7)"/>
+  <circle cx="282" cy="332" r="132" fill="#FFFFFF" fill-opacity="0.88"/>
+  <path d="M154 570C154 458.438 244.438 368 356 368H404C515.562 368 606 458.438 606 570V580H154V570Z" fill="#FFFFFF" fill-opacity="0.72"/>
+  <rect x="662" y="172" width="322" height="64" rx="32" fill="#FFFFFF" fill-opacity="0.9"/>
+  <rect x="662" y="270" width="400" height="40" rx="20" fill="#D9EFE9"/>
+  <rect x="662" y="334" width="372" height="40" rx="20" fill="#C7E7DE"/>
+  <rect x="662" y="430" width="292" height="86" rx="28" fill="#0F766E"/>
+  <text x="704" y="485" fill="#FFFFFF" font-size="30" font-family="Arial, sans-serif" font-weight="700">形象照 / 產品照 / 服務照</text>
+  <defs>
+    <linearGradient id="paint0_linear_1_7" x1="60" y1="52" x2="1097.78" y2="711.551" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D3EEE6"/>
+      <stop offset="1" stop-color="#8FC7B5"/>
+    </linearGradient>
+  </defs>
+</svg>
