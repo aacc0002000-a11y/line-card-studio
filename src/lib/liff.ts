@@ -5,8 +5,51 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 type LiffInstance = (typeof import("@line/liff"))["default"];
 type ShareResult = Awaited<ReturnType<LiffInstance["shareTargetPicker"]>>;
 
+export type LiffDiagnostics = {
+  currentUrl: string;
+  currentOrigin: string;
+  siteUrl: string;
+  siteOrigin: string;
+  hasLiffId: boolean;
+  configuredLiffId: string;
+  runtimeLiffId: string;
+  initStatus: "idle" | "success" | "failed";
+  inClient: boolean | null;
+  loggedIn: boolean | null;
+  shareTargetPickerAvailable: boolean | null;
+  warnings: string[];
+  reason?: string;
+  errorMessage?: string;
+};
+
+export type LiffShareAvailability = {
+  canShare: boolean;
+  reason?: string;
+  diagnostics: LiffDiagnostics;
+};
+
+type LiffInitializationResult = {
+  liff: LiffInstance | null;
+  diagnostics: LiffDiagnostics;
+};
+
+type ShareExecutionStatus =
+  | "success"
+  | "cancelled"
+  | "error"
+  | "unavailable";
+
+export type ShareExecutionResult = {
+  status: ShareExecutionStatus;
+  url: string;
+  result?: ShareResult;
+  error?: unknown;
+  reason?: string;
+  diagnostics: LiffDiagnostics;
+};
+
 let liffInstancePromise: Promise<LiffInstance | null> | null = null;
-let hasInitialized = false;
+let liffInitializationPromise: Promise<LiffInitializationResult> | null = null;
 
 const TEMPORARY_QUERY_KEYS = new Set([
   "access_token",
@@ -34,6 +77,76 @@ const TEMPORARY_QUERY_KEYS = new Set([
 ]);
 
 const PLACEHOLDER_PHOTO_SRC = "/card-photo-placeholder.svg";
+
+function getSiteOrigin(siteUrl: string) {
+  try {
+    return new URL(siteUrl).origin;
+  } catch {
+    return "";
+  }
+}
+
+function getClientLocation() {
+  if (typeof window === "undefined") {
+    return {
+      currentUrl: "",
+      currentOrigin: "",
+    };
+  }
+
+  return {
+    currentUrl: window.location.href,
+    currentOrigin: window.location.origin,
+  };
+}
+
+function createDiagnostics(): LiffDiagnostics {
+  const { currentUrl, currentOrigin } = getClientLocation();
+  const siteUrl = SITE_URL || "";
+  const siteOrigin = getSiteOrigin(siteUrl);
+  const configuredLiffId = LIFF_ID || "";
+  const warnings: string[] = [];
+
+  if (siteOrigin && currentOrigin && siteOrigin !== currentOrigin) {
+    warnings.push(
+      `current origin (${currentOrigin}) does not match NEXT_PUBLIC_SITE_URL origin (${siteOrigin})`,
+    );
+  }
+
+  return {
+    currentUrl,
+    currentOrigin,
+    siteUrl,
+    siteOrigin,
+    hasLiffId: Boolean(configuredLiffId),
+    configuredLiffId,
+    runtimeLiffId: "",
+    initStatus: "idle",
+    inClient: null,
+    loggedIn: null,
+    shareTargetPickerAvailable: null,
+    warnings,
+  };
+}
+
+function logDiagnostics(label: string, diagnostics: LiffDiagnostics) {
+  console.log(label, {
+    currentUrl: diagnostics.currentUrl,
+    currentOrigin: diagnostics.currentOrigin,
+    siteUrl: diagnostics.siteUrl,
+    siteOrigin: diagnostics.siteOrigin,
+    hasLiffId: diagnostics.hasLiffId,
+    configuredLiffId: diagnostics.configuredLiffId,
+    runtimeLiffId: diagnostics.runtimeLiffId,
+    initStatus: diagnostics.initStatus,
+    inClient: diagnostics.inClient,
+    loggedIn: diagnostics.loggedIn,
+    shareTargetPickerAvailable: diagnostics.shareTargetPickerAvailable,
+    warnings: diagnostics.warnings,
+    reason: diagnostics.reason,
+    errorMessage: diagnostics.errorMessage,
+  });
+}
 
 function isTemporaryLiffParam(key: string) {
   const normalizedKey = key.trim();
@@ -110,43 +223,134 @@ async function loadLiff() {
   if (!liffInstancePromise) {
     liffInstancePromise = import("@line/liff")
       .then((module) => module.default)
-      .catch(() => null);
+      .catch((error) => {
+        console.error("Failed to load @line/liff", error);
+        return null;
+      });
   }
 
   return liffInstancePromise;
 }
 
+async function ensureLiffInitialized(): Promise<LiffInitializationResult> {
+  if (!liffInitializationPromise) {
+    liffInitializationPromise = (async () => {
+      const diagnostics = createDiagnostics();
+
+      console.log("LIFF initialization started");
+      logDiagnostics("LIFF environment", diagnostics);
+
+      if (typeof window === "undefined") {
+        diagnostics.reason = "window unavailable";
+        diagnostics.initStatus = "failed";
+        logDiagnostics("LIFF initialization skipped", diagnostics);
+        return { liff: null, diagnostics };
+      }
+
+      if (!diagnostics.hasLiffId) {
+        diagnostics.reason = "missing liffId";
+        diagnostics.initStatus = "failed";
+        logDiagnostics("LIFF initialization failed", diagnostics);
+        return { liff: null, diagnostics };
+      }
+
+      const liff = await loadLiff();
+
+      if (!liff) {
+        diagnostics.reason = "failed to load @line/liff";
+        diagnostics.initStatus = "failed";
+        logDiagnostics("LIFF initialization failed", diagnostics);
+        return { liff: null, diagnostics };
+      }
+
+      try {
+        await liff.init({ liffId: diagnostics.configuredLiffId });
+        diagnostics.initStatus = "success";
+        diagnostics.runtimeLiffId = liff.id || "";
+        diagnostics.inClient = liff.isInClient();
+        diagnostics.loggedIn = liff.isLoggedIn();
+        diagnostics.shareTargetPickerAvailable = liff.isApiAvailable(
+          "shareTargetPicker",
+        );
+
+        if (
+          diagnostics.siteOrigin &&
+          diagnostics.currentOrigin &&
+          diagnostics.siteOrigin !== diagnostics.currentOrigin
+        ) {
+          console.warn(
+            "LIFF origin warning: current origin differs from NEXT_PUBLIC_SITE_URL origin",
+            diagnostics,
+          );
+        }
+
+        logDiagnostics("LIFF initialization success", diagnostics);
+        return { liff, diagnostics };
+      } catch (error) {
+        diagnostics.initStatus = "failed";
+        diagnostics.reason = "liff.init failed";
+        diagnostics.errorMessage =
+          error instanceof Error ? error.message : String(error);
+        logDiagnostics("LIFF initialization failed", diagnostics);
+        console.error("liff.init failed", error);
+        return { liff: null, diagnostics };
+      }
+    })();
+  }
+
+  return liffInitializationPromise;
+}
+
+export async function inspectLiffShareAvailability(): Promise<LiffShareAvailability> {
+  const { liff, diagnostics } = await ensureLiffInitialized();
+
+  if (!liff) {
+    return {
+      canShare: false,
+      reason: diagnostics.reason || "liff.init failed",
+      diagnostics,
+    };
+  }
+
+  if (!diagnostics.inClient) {
+    diagnostics.reason = "not running inside LINE client";
+    logDiagnostics("LIFF share unavailable", diagnostics);
+    return {
+      canShare: false,
+      reason: diagnostics.reason,
+      diagnostics,
+    };
+  }
+
+  if (!diagnostics.shareTargetPickerAvailable) {
+    diagnostics.reason = "shareTargetPicker not available";
+    logDiagnostics("LIFF share unavailable", diagnostics);
+    return {
+      canShare: false,
+      reason: diagnostics.reason,
+      diagnostics,
+    };
+  }
+
+  diagnostics.reason = undefined;
+  logDiagnostics("LIFF share available", diagnostics);
+
+  return {
+    canShare: true,
+    diagnostics,
+  };
+}
+
 export async function initLiffIfAvailable() {
-  if (!LIFF_ID || typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const liff = await loadLiff();
-
-    if (!liff) {
-      return null;
-    }
-
-    if (!hasInitialized) {
-      await liff.init({ liffId: LIFF_ID });
-      hasInitialized = true;
-    }
-
-    return liff;
-  } catch {
-    return null;
-  }
+  const { liff } = await ensureLiffInitialized();
+  return liff;
 }
 
 export async function getCleanShareUrl() {
-  const liff = await initLiffIfAvailable();
+  const { liff } = await ensureLiffInitialized();
   const currentUrl = typeof window === "undefined" ? "" : window.location.href;
   const sanitizedCurrentUrl = sanitizeUrl(currentUrl);
 
-  // Never share window.location.href directly in LIFF.
-  // LINE may append temporary auth and context parameters that should not be
-  // exposed in chat messages or copied by end users.
   if (liff?.permanentLink?.createUrlBy && sanitizedCurrentUrl) {
     try {
       const permanentUrl = await liff.permanentLink.createUrlBy(
@@ -154,8 +358,8 @@ export async function getCleanShareUrl() {
       );
 
       return sanitizeUrl(permanentUrl) || sanitizedCurrentUrl;
-    } catch {
-      // Fall through to the stable site URL / origin fallback.
+    } catch (error) {
+      console.warn("Failed to create LIFF permanent link", error);
     }
   }
 
@@ -391,27 +595,30 @@ export async function buildBusinessCardFlexMessage() {
   };
 }
 
-type ShareExecutionStatus =
-  | "success"
-  | "cancelled"
-  | "error"
-  | "unavailable";
-
-type ShareExecutionResult = {
-  status: ShareExecutionStatus;
-  url: string;
-  result?: ShareResult;
-  error?: unknown;
-};
-
-async function shareMessages(messages: Parameters<LiffInstance["shareTargetPicker"]>[0]) {
-  const liff = await initLiffIfAvailable();
+async function shareMessages(
+  messages: Parameters<LiffInstance["shareTargetPicker"]>[0],
+): Promise<ShareExecutionResult> {
+  const availability = await inspectLiffShareAvailability();
   const cleanUrl = await getCleanShareUrl();
 
-  if (!liff || !liff.isInClient()) {
+  if (!availability.canShare) {
+    console.warn("LIFF share fallback", availability);
     return {
-      status: "unavailable" as const,
+      status: "unavailable",
       url: cleanUrl,
+      reason: availability.reason,
+      diagnostics: availability.diagnostics,
+    };
+  }
+
+  const liff = await initLiffIfAvailable();
+
+  if (!liff) {
+    return {
+      status: "unavailable",
+      url: cleanUrl,
+      reason: "liff.init failed",
+      diagnostics: availability.diagnostics,
     };
   }
 
@@ -422,24 +629,30 @@ async function shareMessages(messages: Parameters<LiffInstance["shareTargetPicke
 
     if (result?.status === "success") {
       return {
-        status: "success" as const,
+        status: "success",
         url: cleanUrl,
         result,
+        diagnostics: availability.diagnostics,
       };
     }
 
+    console.log("shareTargetPicker cancelled");
+
     return {
-      status: "cancelled" as const,
+      status: "cancelled",
       url: cleanUrl,
       result,
+      diagnostics: availability.diagnostics,
     };
   } catch (error) {
     console.error("shareTargetPicker error:", error);
 
     return {
-      status: "error" as const,
+      status: "error",
       url: cleanUrl,
       error,
+      reason: "shareTargetPicker error",
+      diagnostics: availability.diagnostics,
     };
   }
 }
@@ -453,7 +666,7 @@ export async function shareMinimalFlexViaLiff(): Promise<ShareExecutionResult> {
   return shareMessages([minimalFlexMessage]);
 }
 
-export async function shareCardViaLiff() {
+export async function shareCardViaLiff(): Promise<ShareExecutionResult> {
   const flexMessage = await buildBusinessCardFlexMessage();
   return shareMessages([flexMessage]);
 }

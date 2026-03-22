@@ -1,13 +1,23 @@
 "use client";
 
 import { cardContent } from "@/data/card";
-import { getCleanShareUrl, shareCardViaLiff } from "@/lib/liff";
+import {
+  getCleanShareUrl,
+  inspectLiffShareAvailability,
+  shareCardViaLiff,
+} from "@/lib/liff";
 import { useEffect, useState } from "react";
 
 type ActionStatus = {
-  kind: "success" | "error";
+  kind: "success" | "error" | "info";
   message: string;
 } | null;
+
+type ShareMode = {
+  ready: boolean;
+  fallbackToCopy: boolean;
+  reason?: string;
+};
 
 function phoneHref(phone: string) {
   return `tel:${phone.replace(/\s+/g, "")}`;
@@ -52,6 +62,11 @@ function ActionLink({
 export function CardActions() {
   const [status, setStatus] = useState<ActionStatus>(null);
   const [isPending, setIsPending] = useState(false);
+  const [isInitializingShare, setIsInitializingShare] = useState(true);
+  const [shareMode, setShareMode] = useState<ShareMode>({
+    ready: false,
+    fallbackToCopy: false,
+  });
 
   useEffect(() => {
     if (!status) {
@@ -63,29 +78,94 @@ export function CardActions() {
     return () => window.clearTimeout(timer);
   }, [status]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    setStatus({ kind: "info", message: "正在初始化 LINE 分享..." });
+
+    void (async () => {
+      const availability = await inspectLiffShareAvailability();
+
+      if (!isMounted) {
+        return;
+      }
+
+      if (availability.canShare) {
+        setShareMode({
+          ready: true,
+          fallbackToCopy: false,
+        });
+        setStatus({ kind: "info", message: "LINE 分享已就緒" });
+        setIsInitializingShare(false);
+        return;
+      }
+
+      setShareMode({
+        ready: false,
+        fallbackToCopy: true,
+        reason: availability.reason,
+      });
+      setStatus({
+        kind: "error",
+        message: `LINE 分享尚未啟用：${availability.reason || "unknown reason"}`,
+      });
+      setIsInitializingShare(false);
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const shareOrCopy = async () => {
+    if (isInitializingShare) {
+      setStatus({ kind: "info", message: "正在初始化 LINE 分享..." });
+      return;
+    }
+
     setIsPending(true);
 
     try {
-      const { status, url } = await shareCardViaLiff();
+      if (shareMode.ready) {
+        const { status, reason } = await shareCardViaLiff();
 
-      if (status === "success") {
-        setStatus({ kind: "success", message: "LINE 電子名片已成功分享" });
+        if (status === "success") {
+          setStatus({ kind: "success", message: "LINE 電子名片已成功分享" });
+          return;
+        }
+
+        if (status === "cancelled") {
+          setStatus({ kind: "info", message: "你已取消分享，聊天室未送出訊息" });
+          return;
+        }
+
+        if (status === "unavailable") {
+          setShareMode({
+            ready: false,
+            fallbackToCopy: true,
+            reason,
+          });
+          setStatus({
+            kind: "error",
+            message: `LINE 分享不可用：${reason || "unknown reason"}`,
+          });
+          return;
+        }
+
+        setStatus({
+          kind: "error",
+          message: `LIFF 分享失敗：${reason || "shareTargetPicker error"}`,
+        });
         return;
       }
 
-      if (status === "cancelled") {
-        setStatus({ kind: "error", message: "你已取消分享，聊天室未送出訊息" });
-        return;
-      }
+      const cleanUrl = await getCleanShareUrl();
 
-      if (status === "unavailable") {
-        await copyText(url);
-        setStatus({ kind: "success", message: "LIFF 不可用，已改為複製連結" });
-        return;
-      }
-
-      setStatus({ kind: "error", message: "LIFF 分享失敗，請查看 console 紀錄" });
+      await copyText(cleanUrl);
+      setStatus({
+        kind: "info",
+        message: `LINE 分享未啟用，已複製連結：${shareMode.reason || "unknown reason"}`,
+      });
     } catch {
       setStatus({ kind: "error", message: "分享失敗，請稍後再試" });
     } finally {
@@ -119,10 +199,16 @@ export function CardActions() {
         <button
           type="button"
           onClick={shareOrCopy}
-          disabled={isPending}
+          disabled={isPending || isInitializingShare}
           className="min-h-12 rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-white shadow-sm hover:-translate-y-0.5 hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isPending ? "處理中..." : "分享給 LINE 好友 / 群組"}
+          {isPending
+            ? "處理中..."
+            : isInitializingShare
+              ? "正在初始化 LINE 分享"
+              : shareMode.ready
+                ? "分享給 LINE 好友 / 群組"
+                : "複製名片連結（LINE 分享未啟用）"}
         </button>
         <button
           type="button"
@@ -138,7 +224,7 @@ export function CardActions() {
         }`}
         aria-live="polite"
       >
-        {status?.message || "若未設定 LIFF ID，分享按鈕會自動退回複製連結。"}
+        {status?.message || "LINE 分享初始化完成後，才會啟用真正的分享流程。"}
       </p>
     </div>
   );
