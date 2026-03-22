@@ -6,6 +6,13 @@ type LiffInstance = (typeof import("@line/liff"))["default"];
 type ShareResult = Awaited<ReturnType<LiffInstance["shareTargetPicker"]>>;
 const SHARE_CARD_IMAGE_SRC = "/share-card-image.svg";
 
+type SharePayloadMode =
+  | "image_and_minimal_flex"
+  | "flex_only"
+  | "text_and_minimal_flex";
+// Switch to "flex_only" or "text_and_minimal_flex" for targeted debugging.
+const SHARE_PAYLOAD_MODE: SharePayloadMode = "image_and_minimal_flex";
+
 export type LiffDiagnostics = {
   currentUrl: string;
   currentOrigin: string;
@@ -76,8 +83,6 @@ const TEMPORARY_QUERY_KEYS = new Set([
   "session_id",
   "token",
 ]);
-
-const PLACEHOLDER_PHOTO_SRC = "/card-photo-placeholder.svg";
 
 function getSiteOrigin(siteUrl: string) {
   try {
@@ -208,12 +213,18 @@ function toAbsoluteUrl(pathOrUrl: string, baseUrl: string) {
   }
 }
 
-function truncateText(text: string, maxLength: number) {
-  if (text.length <= maxLength) {
-    return text;
-  }
+function logSharePayload(
+  mode: SharePayloadMode,
+  messages: Parameters<LiffInstance["shareTargetPicker"]>[0],
+) {
+  console.log("shareTargetPicker payload summary:", {
+    mode,
+    messagesLength: messages.length,
+  });
 
-  return `${text.slice(0, maxLength - 1)}…`;
+  messages.forEach((message, index) => {
+    console.log(`shareTargetPicker payload[${index}]`, message);
+  });
 }
 
 async function loadLiff() {
@@ -373,39 +384,6 @@ export async function getCleanShareUrl() {
   return sanitizeUrl(getOriginAndPathnameUrl()) || getOriginAndPathnameUrl();
 }
 
-function shouldIncludeHeroImage() {
-  return Boolean(
-    cardContent.photoSrc &&
-      cardContent.photoSrc !== PLACEHOLDER_PHOTO_SRC &&
-      !cardContent.photoSrc.includes("placeholder"),
-  );
-}
-
-function buildBulletRow(text: string) {
-  return {
-    type: "box" as const,
-    layout: "baseline" as const,
-    spacing: "sm" as const,
-    contents: [
-      {
-        type: "text" as const,
-        text: "•",
-        size: "sm" as const,
-        color: "#0F766E",
-        flex: 0,
-      },
-      {
-        type: "text" as const,
-        text,
-        size: "sm" as const,
-        color: "#172033",
-        wrap: true,
-        flex: 1,
-      },
-    ],
-  };
-}
-
 export function buildShareTextMessage() {
   return {
     type: "text" as const,
@@ -487,102 +465,40 @@ export async function buildMinimalFlexMessage() {
 
 export async function buildBusinessCardFlexMessage() {
   const cleanUrl = await getCleanShareUrl();
-  const baseUrl = getBaseUrl() || cleanUrl;
-  const bulletPreview = cardContent.bullets.slice(0, 3);
-  const bubbleContents = [
-    {
-      type: "text" as const,
-      text: cardContent.brandEn,
-      size: "xs" as const,
-      color: "#0F766E",
-      weight: "bold" as const,
-      letterSpacing: "2px",
-    },
-    {
-      type: "text" as const,
-      text: cardContent.heroTitle,
-      size: "xl" as const,
-      weight: "bold" as const,
-      color: "#172033",
-      wrap: true,
-    },
-    {
-      type: "text" as const,
-      text: cardContent.displayName,
-      size: "sm" as const,
-      color: "#5F6B84",
-      wrap: true,
-    },
-    {
-      type: "separator" as const,
-      margin: "md" as const,
-      color: "#E3E8F2",
-    },
-    {
-      type: "text" as const,
-      text: truncateText(cardContent.intro, 88),
-      size: "sm" as const,
-      color: "#172033",
-      wrap: true,
-    },
-    ...bulletPreview.map(buildBulletRow),
-  ];
-
-  if (shouldIncludeHeroImage()) {
-    const heroImageUrl = toAbsoluteUrl(cardContent.photoSrc, baseUrl);
-
-    return {
-      type: "flex" as const,
-      altText: `${cardContent.displayName} 的 LINE 電子名片`,
-      contents: {
-        type: "bubble" as const,
-        hero: {
-          type: "image" as const,
-          url: heroImageUrl,
-          size: "full" as const,
-          aspectRatio: "20:13" as const,
-          aspectMode: "cover" as const,
-        },
-        body: {
-          type: "box" as const,
-          layout: "vertical" as const,
-          spacing: "md" as const,
-          contents: bubbleContents,
-          paddingAll: "20px",
-          backgroundColor: "#FFFFFF",
-        },
-        footer: {
-          type: "box" as const,
-          layout: "vertical" as const,
-          contents: [
-            {
-              type: "button" as const,
-              style: "primary" as const,
-              color: "#0F766E",
-              action: {
-                type: "uri" as const,
-                label: "查看完整電子名片",
-                uri: cleanUrl,
-              },
-            },
-          ],
-          paddingAll: "20px",
-          backgroundColor: "#FFFFFF",
-        },
-      },
-    };
-  }
-
   return {
     type: "flex" as const,
-    altText: `${cardContent.displayName} 的 LINE 電子名片`,
+    altText: "雙木林電子名片",
     contents: {
       type: "bubble" as const,
       body: {
         type: "box" as const,
         layout: "vertical" as const,
-        spacing: "md" as const,
-        contents: bubbleContents,
+        spacing: "sm" as const,
+        contents: [
+          {
+            type: "text" as const,
+            text: cardContent.brandEn,
+            size: "sm" as const,
+            color: "#0F766E",
+            weight: "bold" as const,
+            wrap: true,
+          },
+          {
+            type: "text" as const,
+            text: cardContent.heroTitle,
+            size: "xl" as const,
+            weight: "bold" as const,
+            color: "#172033",
+            wrap: true,
+          },
+          {
+            type: "text" as const,
+            text: cardContent.displayName,
+            size: "sm" as const,
+            color: "#5F6B84",
+            wrap: true,
+          },
+        ],
         paddingAll: "20px",
         backgroundColor: "#FFFFFF",
       },
@@ -609,10 +525,29 @@ export async function buildBusinessCardFlexMessage() {
 }
 
 export async function buildShareCardMessages() {
-  const imageMessage = await buildShareImageMessage();
-  const flexMessage = await buildBusinessCardFlexMessage();
+  try {
+    const flexMessage = await buildBusinessCardFlexMessage();
 
-  return [imageMessage, flexMessage] as const;
+    if (SHARE_PAYLOAD_MODE === "flex_only") {
+      return [flexMessage] as const;
+    }
+
+    if (SHARE_PAYLOAD_MODE === "text_and_minimal_flex") {
+      return [
+        {
+          type: "text" as const,
+          text: "LIFF Flex smoke test",
+        },
+        flexMessage,
+      ] as const;
+    }
+
+    const imageMessage = await buildShareImageMessage();
+    return [imageMessage, flexMessage] as const;
+  } catch (error) {
+    console.error("Failed to build share card messages", error);
+    throw error;
+  }
 }
 
 async function shareMessages(
@@ -643,7 +578,7 @@ async function shareMessages(
   }
 
   try {
-    console.log("shareTargetPicker payload:", messages);
+    logSharePayload(SHARE_PAYLOAD_MODE, messages);
     const result = await liff.shareTargetPicker(messages);
 
     console.log("shareTargetPicker result:", result);
