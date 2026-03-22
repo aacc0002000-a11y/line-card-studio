@@ -67,15 +67,25 @@ export function CardActions() {
     setIsPending(true);
 
     try {
-      const { shared, url } = await shareCardViaLiff();
+      const { status, url } = await shareCardViaLiff();
 
-      if (shared) {
-        setStatus({ kind: "success", message: "已開啟 LINE 分享視窗" });
+      if (status === "success") {
+        setStatus({ kind: "success", message: "LINE 電子名片已成功分享" });
         return;
       }
 
-      await copyText(url);
-      setStatus({ kind: "success", message: "LIFF 不可用，已改為複製連結" });
+      if (status === "cancelled") {
+        setStatus({ kind: "error", message: "你已取消分享，聊天室未送出訊息" });
+        return;
+      }
+
+      if (status === "unavailable") {
+        await copyText(url);
+        setStatus({ kind: "success", message: "LIFF 不可用，已改為複製連結" });
+        return;
+      }
+
+      setStatus({ kind: "error", message: "LIFF 分享失敗，請查看 console 紀錄" });
     } catch {
       setStatus({ kind: "error", message: "分享失敗，請稍後再試" });
     } finally {
