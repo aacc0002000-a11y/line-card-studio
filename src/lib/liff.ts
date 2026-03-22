@@ -6,14 +6,15 @@ type LiffInstance = (typeof import("@line/liff"))["default"];
 type ShareResult = Awaited<ReturnType<LiffInstance["shareTargetPicker"]>>;
 
 type SharePayloadMode =
-  | "final_refined_business_card_bubble"
+  | "refined_safe_business_card_bubble"
   | "enhanced_business_card_bubble"
   | "minimal_bubble"
   | "flex_only"
   | "text_and_minimal_flex";
-// Switch to "enhanced_business_card_bubble", "minimal_bubble",
-// "flex_only", or "text_and_minimal_flex" for targeted debugging and rollback.
-const SHARE_PAYLOAD_MODE: SharePayloadMode = "final_refined_business_card_bubble";
+// Default stays on the last known good version. Switch to
+// "refined_safe_business_card_bubble", "minimal_bubble", "flex_only", or
+// "text_and_minimal_flex" only for controlled iteration and rollback.
+const SHARE_PAYLOAD_MODE: SharePayloadMode = "enhanced_business_card_bubble";
 
 export type LiffDiagnostics = {
   currentUrl: string;
@@ -613,7 +614,7 @@ export async function buildBusinessCardFlexMessage() {
   };
 }
 
-export async function buildFinalRefinedBusinessCardFlexMessage() {
+export async function buildRefinedSafeBusinessCardFlexMessage() {
   const cleanUrl = await getCleanShareUrl();
   const summaryText =
     "我是晏珊，專門協助老闆把 LINE 官方帳號＋營運流程，變成「會帶客、會回流」的好員工。";
@@ -624,7 +625,6 @@ export async function buildFinalRefinedBusinessCardFlexMessage() {
     altText: "雙木林電子名片",
     contents: {
       type: "bubble" as const,
-      size: "kilo" as const,
       header: {
         type: "box" as const,
         layout: "vertical" as const,
@@ -633,14 +633,13 @@ export async function buildFinalRefinedBusinessCardFlexMessage() {
             type: "text" as const,
             text: cardContent.brandEn,
             size: "sm" as const,
-            weight: "bold" as const,
             color: "#FFFFFF",
-            letterSpacing: "2px",
+            weight: "bold" as const,
             wrap: true,
           },
         ],
-        paddingTop: "12px",
-        paddingBottom: "12px",
+        paddingTop: "14px",
+        paddingBottom: "14px",
         paddingStart: "20px",
         paddingEnd: "20px",
         backgroundColor: "#0F766E",
@@ -658,42 +657,28 @@ export async function buildFinalRefinedBusinessCardFlexMessage() {
               {
                 type: "box" as const,
                 layout: "vertical" as const,
-                width: "72px",
-                height: "72px",
-                cornerRadius: "36px",
-                backgroundColor: "#E3F3F0",
-                borderWidth: "2px",
-                borderColor: "#B7DDD6",
+                width: "56px",
+                height: "56px",
+                cornerRadius: "28px",
+                backgroundColor: "#E6F3F1",
                 justifyContent: "center" as const,
                 alignItems: "center" as const,
                 flex: 0,
                 contents: [
                   {
-                    type: "box" as const,
-                    layout: "vertical" as const,
-                    width: "56px",
-                    height: "56px",
-                    cornerRadius: "28px",
-                    backgroundColor: "#0F766E",
-                    justifyContent: "center" as const,
-                    alignItems: "center" as const,
-                    contents: [
-                      {
-                        type: "text" as const,
-                        text: "晏珊",
-                        size: "xs" as const,
-                        weight: "bold" as const,
-                        color: "#FFFFFF",
-                        align: "center" as const,
-                      },
-                    ],
+                    type: "text" as const,
+                    text: "晏",
+                    size: "lg" as const,
+                    weight: "bold" as const,
+                    color: "#0F766E",
+                    align: "center" as const,
                   },
                 ],
               },
               {
                 type: "box" as const,
                 layout: "vertical" as const,
-                spacing: "xs" as const,
+                spacing: "sm" as const,
                 flex: 1,
                 contents: [
                   {
@@ -719,17 +704,10 @@ export async function buildFinalRefinedBusinessCardFlexMessage() {
             type: "box" as const,
             layout: "vertical" as const,
             spacing: "sm" as const,
-            paddingAll: "16px",
-            cornerRadius: "16px",
+            paddingAll: "14px",
+            cornerRadius: "14px",
             backgroundColor: "#F5F8FC",
             contents: [
-              {
-                type: "text" as const,
-                text: "自我介紹",
-                size: "xs" as const,
-                weight: "bold" as const,
-                color: "#0F766E",
-              },
               {
                 type: "text" as const,
                 text: summaryText,
@@ -743,46 +721,35 @@ export async function buildFinalRefinedBusinessCardFlexMessage() {
             type: "box" as const,
             layout: "vertical" as const,
             spacing: "sm" as const,
-            contents: [
-              {
-                type: "text" as const,
-                text: "服務重點",
-                size: "xs" as const,
-                weight: "bold" as const,
-                color: "#0F766E",
-              },
-              ...serviceBullets.map((bullet) => ({
-                type: "box" as const,
-                layout: "horizontal" as const,
-                spacing: "sm" as const,
-                paddingAll: "12px",
-                cornerRadius: "14px",
-                backgroundColor: "#FFFFFF",
-                borderWidth: "1px",
-                borderColor: "#E3E8F2",
-                contents: [
-                  {
-                    type: "box" as const,
-                    layout: "vertical" as const,
-                    width: "18px",
-                    height: "18px",
-                    cornerRadius: "9px",
-                    backgroundColor: "#0F766E",
-                    margin: "xs" as const,
-                    flex: 0,
-                    contents: [],
-                  },
-                  {
-                    type: "text" as const,
-                    text: bullet,
-                    size: "sm" as const,
-                    color: "#172033",
-                    wrap: true,
-                    flex: 1,
-                  },
-                ],
-              })),
-            ],
+            contents: serviceBullets.map((bullet) => ({
+              type: "box" as const,
+              layout: "horizontal" as const,
+              spacing: "sm" as const,
+              paddingAll: "12px",
+              cornerRadius: "14px",
+              backgroundColor: "#F8FAFC",
+              contents: [
+                {
+                  type: "box" as const,
+                  layout: "vertical" as const,
+                  width: "16px",
+                  height: "16px",
+                  cornerRadius: "8px",
+                  backgroundColor: "#0F766E",
+                  margin: "xs" as const,
+                  flex: 0,
+                  contents: [],
+                },
+                {
+                  type: "text" as const,
+                  text: bullet,
+                  size: "sm" as const,
+                  color: "#172033",
+                  wrap: true,
+                  flex: 1,
+                },
+              ],
+            })),
           },
         ],
         paddingAll: "20px",
@@ -814,10 +781,7 @@ export async function buildFinalRefinedBusinessCardFlexMessage() {
             },
           },
         ],
-        paddingTop: "0px",
-        paddingBottom: "20px",
-        paddingStart: "20px",
-        paddingEnd: "20px",
+        paddingAll: "20px",
         backgroundColor: "#FFFFFF",
       },
     },
@@ -830,9 +794,9 @@ export async function buildShareCardMessages() {
       SHARE_PAYLOAD_MODE === "minimal_bubble" ||
       SHARE_PAYLOAD_MODE === "text_and_minimal_flex"
         ? await buildMinimalFlexMessage()
-        : SHARE_PAYLOAD_MODE === "enhanced_business_card_bubble"
-          ? await buildBusinessCardFlexMessage()
-          : await buildFinalRefinedBusinessCardFlexMessage();
+      : SHARE_PAYLOAD_MODE === "enhanced_business_card_bubble"
+        ? await buildBusinessCardFlexMessage()
+        : await buildRefinedSafeBusinessCardFlexMessage();
 
     if (SHARE_PAYLOAD_MODE === "flex_only") {
       return [flexMessage] as const;
