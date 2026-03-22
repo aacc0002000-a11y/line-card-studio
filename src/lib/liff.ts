@@ -4,6 +4,7 @@ const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL;
 type LiffInstance = (typeof import("@line/liff"))["default"];
 type ShareResult = Awaited<ReturnType<LiffInstance["shareTargetPicker"]>>;
+const SHARE_CARD_IMAGE_SRC = "/share-card-image.svg";
 
 export type LiffDiagnostics = {
   currentUrl: string;
@@ -412,6 +413,18 @@ export function buildShareTextMessage() {
   };
 }
 
+export async function buildShareImageMessage() {
+  const cleanUrl = await getCleanShareUrl();
+  const baseUrl = getBaseUrl() || cleanUrl;
+  const imageUrl = toAbsoluteUrl(SHARE_CARD_IMAGE_SRC, baseUrl);
+
+  return {
+    type: "image" as const,
+    originalContentUrl: imageUrl,
+    previewImageUrl: imageUrl,
+  };
+}
+
 export async function buildMinimalFlexMessage() {
   const cleanUrl = await getCleanShareUrl();
 
@@ -595,6 +608,13 @@ export async function buildBusinessCardFlexMessage() {
   };
 }
 
+export async function buildShareCardMessages() {
+  const imageMessage = await buildShareImageMessage();
+  const flexMessage = await buildBusinessCardFlexMessage();
+
+  return [imageMessage, flexMessage] as const;
+}
+
 async function shareMessages(
   messages: Parameters<LiffInstance["shareTargetPicker"]>[0],
 ): Promise<ShareExecutionResult> {
@@ -623,6 +643,7 @@ async function shareMessages(
   }
 
   try {
+    console.log("shareTargetPicker payload:", messages);
     const result = await liff.shareTargetPicker(messages);
 
     console.log("shareTargetPicker result:", result);
@@ -636,7 +657,9 @@ async function shareMessages(
       };
     }
 
-    console.log("shareTargetPicker cancelled");
+    console.log("shareTargetPicker cancelled", {
+      reason: "picker closed or no target selected",
+    });
 
     return {
       status: "cancelled",
@@ -661,12 +684,17 @@ export async function shareTextViaLiff(): Promise<ShareExecutionResult> {
   return shareMessages([buildShareTextMessage()]);
 }
 
+export async function shareImageViaLiff(): Promise<ShareExecutionResult> {
+  const imageMessage = await buildShareImageMessage();
+  return shareMessages([imageMessage]);
+}
+
 export async function shareMinimalFlexViaLiff(): Promise<ShareExecutionResult> {
   const minimalFlexMessage = await buildMinimalFlexMessage();
   return shareMessages([minimalFlexMessage]);
 }
 
 export async function shareCardViaLiff(): Promise<ShareExecutionResult> {
-  const flexMessage = await buildBusinessCardFlexMessage();
-  return shareMessages([flexMessage]);
+  const messages = await buildShareCardMessages();
+  return shareMessages([...messages]);
 }

@@ -1,0 +1,16 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="900" fill="#EDF5F4"/>
+  <rect x="60" y="60" width="1080" height="780" rx="40" fill="#FFFFFF"/>
+  <rect x="120" y="120" width="960" height="660" rx="32" fill="#F8FAFC" stroke="#DCE7E5" stroke-width="2"/>
+  <text x="160" y="220" fill="#0F766E" font-size="32" font-family="Arial, sans-serif" letter-spacing="8">SHUANG MU LIN</text>
+  <text x="160" y="340" fill="#172033" font-size="76" font-family="Arial, sans-serif" font-weight="700">讓LINE變會賺錢好員工</text>
+  <text x="160" y="430" fill="#5F6B84" font-size="38" font-family="Arial, sans-serif">老闆營運的好夥伴－晏珊</text>
+  <circle cx="186" cy="536" r="10" fill="#0F766E"/>
+  <text x="218" y="546" fill="#172033" font-size="30" font-family="Arial, sans-serif">看懂客群與賣點，規劃更會成交的 LINE 版面</text>
+  <circle cx="186" cy="606" r="10" fill="#0F766E"/>
+  <text x="218" y="616" fill="#172033" font-size="30" font-family="Arial, sans-serif">搭建預約、通知、回流與自動化流程</text>
+  <circle cx="186" cy="676" r="10" fill="#0F766E"/>
+  <text x="218" y="686" fill="#172033" font-size="30" font-family="Arial, sans-serif">把 LINE 變成 24 小時營運助手</text>
+  <rect x="160" y="730" width="340" height="62" rx="31" fill="#0F766E"/>
+  <text x="230" y="770" fill="#FFFFFF" font-size="28" font-family="Arial, sans-serif">LINE 電子名片分享卡</text>
+</svg>
