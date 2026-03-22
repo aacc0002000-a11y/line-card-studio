@@ -7,11 +7,13 @@ type ShareResult = Awaited<ReturnType<LiffInstance["shareTargetPicker"]>>;
 const SHARE_CARD_IMAGE_SRC = "/share-card-image.svg";
 
 type SharePayloadMode =
-  | "image_and_minimal_flex"
+  | "image_and_full_bubble"
+  | "image_and_minimal_bubble"
   | "flex_only"
   | "text_and_minimal_flex";
-// Switch to "flex_only" or "text_and_minimal_flex" for targeted debugging.
-const SHARE_PAYLOAD_MODE: SharePayloadMode = "image_and_minimal_flex";
+// Switch to "image_and_minimal_bubble", "flex_only", or
+// "text_and_minimal_flex" for targeted debugging and quick rollback.
+const SHARE_PAYLOAD_MODE: SharePayloadMode = "image_and_full_bubble";
 
 export type LiffDiagnostics = {
   currentUrl: string;
@@ -465,24 +467,35 @@ export async function buildMinimalFlexMessage() {
 
 export async function buildBusinessCardFlexMessage() {
   const cleanUrl = await getCleanShareUrl();
+  const summaryText = `${cardContent.intro.split("。")[0]}。`;
+  const serviceBullets = cardContent.bullets.slice(0, 3);
+
   return {
     type: "flex" as const,
     altText: "雙木林電子名片",
     contents: {
       type: "bubble" as const,
-      body: {
+      header: {
         type: "box" as const,
         layout: "vertical" as const,
-        spacing: "sm" as const,
         contents: [
           {
             type: "text" as const,
             text: cardContent.brandEn,
             size: "sm" as const,
-            color: "#0F766E",
+            color: "#FFFFFF",
             weight: "bold" as const,
             wrap: true,
           },
+        ],
+        paddingAll: "16px",
+        backgroundColor: "#0F766E",
+      },
+      body: {
+        type: "box" as const,
+        layout: "vertical" as const,
+        spacing: "md" as const,
+        contents: [
           {
             type: "text" as const,
             text: cardContent.heroTitle,
@@ -497,6 +510,44 @@ export async function buildBusinessCardFlexMessage() {
             size: "sm" as const,
             color: "#5F6B84",
             wrap: true,
+          },
+          {
+            type: "separator" as const,
+            color: "#E3E8F2",
+          },
+          {
+            type: "text" as const,
+            text: summaryText,
+            size: "sm" as const,
+            color: "#172033",
+            wrap: true,
+          },
+          {
+            type: "box" as const,
+            layout: "vertical" as const,
+            spacing: "sm" as const,
+            contents: serviceBullets.map((bullet) => ({
+              type: "box" as const,
+              layout: "baseline" as const,
+              spacing: "sm" as const,
+              contents: [
+                {
+                  type: "text" as const,
+                  text: "•",
+                  size: "sm" as const,
+                  color: "#0F766E",
+                  flex: 0,
+                },
+                {
+                  type: "text" as const,
+                  text: bullet,
+                  size: "sm" as const,
+                  color: "#172033",
+                  wrap: true,
+                  flex: 1,
+                },
+              ],
+            })),
           },
         ],
         paddingAll: "20px",
@@ -516,7 +567,17 @@ export async function buildBusinessCardFlexMessage() {
               uri: cleanUrl,
             },
           },
+          {
+            type: "button" as const,
+            style: "secondary" as const,
+            action: {
+              type: "uri" as const,
+              label: "前往 LINE 官方一探究竟",
+              uri: cardContent.links.lineUrl,
+            },
+          },
         ],
+        spacing: "sm" as const,
         paddingAll: "20px",
         backgroundColor: "#FFFFFF",
       },
@@ -526,7 +587,11 @@ export async function buildBusinessCardFlexMessage() {
 
 export async function buildShareCardMessages() {
   try {
-    const flexMessage = await buildBusinessCardFlexMessage();
+    const flexMessage =
+      SHARE_PAYLOAD_MODE === "image_and_minimal_bubble" ||
+      SHARE_PAYLOAD_MODE === "text_and_minimal_flex"
+        ? await buildMinimalFlexMessage()
+        : await buildBusinessCardFlexMessage();
 
     if (SHARE_PAYLOAD_MODE === "flex_only") {
       return [flexMessage] as const;
