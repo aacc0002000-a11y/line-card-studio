@@ -24,7 +24,11 @@
           <button id="load-button" type="button" class="button button-secondary">重新載入資料</button>
         </div>
 
+        <div id="feedback-toast" class="feedback-toast" aria-live="polite"></div>
+
         <form id="card-form" class="form">
+          <input id="cardId" name="cardId" type="hidden" value="default-card">
+
           <div class="field-grid">
             <label class="field">
               <span>brandEn</span>
@@ -38,11 +42,49 @@
               <span>displayName</span>
               <input id="displayName" name="displayName" type="text" placeholder="例如：老闆營運的好夥伴－晏珊">
             </label>
-            <label class="field">
-              <span>photo_url</span>
-              <input id="photoUrl" name="photoUrl" type="text" placeholder="例如：https://... 或 /card-photo-placeholder.svg">
-            </label>
           </div>
+
+          <input id="photoUrl" name="photoUrl" type="hidden">
+          <input id="photoFileId" name="photoFileId" type="hidden">
+          <input id="photoMimeType" name="photoMimeType" type="hidden">
+          <input id="photoUpdatedAt" name="photoUpdatedAt" type="hidden">
+
+          <section class="subsection">
+            <h2>照片上傳</h2>
+            <div class="tip-panel">
+              <p class="tip-title">上傳前小提醒</p>
+              <p class="tip-text">建議比例：3:4 直式</p>
+              <p class="tip-text">建議尺寸：1200 x 1600 px</p>
+              <p class="tip-text">可接受尺寸：1080 x 1440、1500 x 2000</p>
+              <p class="tip-text">提醒：人物請盡量置中，頭頂與下半身不要貼邊。</p>
+              <p class="tip-text">系統會盡量以完整顯示為優先，避免裁切。</p>
+            </div>
+            <div class="upload-grid">
+              <div class="field upload-field">
+                <span>選擇圖片檔案</span>
+                <label for="photoFile" class="button button-secondary file-trigger">選擇圖片檔案</label>
+                <input
+                  id="photoFile"
+                  name="photoFile"
+                  type="file"
+                  accept="image/*,.jpg,.jpeg,.png,.webp"
+                  class="file-input-hidden"
+                >
+                <p id="selected-file-name" class="hint">尚未選擇檔案</p>
+                <p class="hint">支援 jpg、jpeg、png、webp。選檔後會先做本地預覽，再按下方按鈕上傳圖片到 Drive。</p>
+              </div>
+              <div class="upload-actions">
+                <button id="upload-photo-button" type="button" class="button button-secondary">上傳圖片到 Drive</button>
+                <p id="upload-status" class="upload-status">尚未選擇圖片，請先選圖再上傳。</p>
+              </div>
+            </div>
+            <div class="photo-preview-panel">
+              <img id="photoPreview" alt="目前卡片照片預覽" class="photo-preview" src="/card-photo-placeholder.svg">
+              <div class="photo-meta">
+                <p id="photo-meta-text" class="hint">目前預覽會跟隨已儲存 photoUrl 或本地選取圖片。</p>
+              </div>
+            </div>
+          </section>
 
           <label class="field">
             <span>自介</span>
@@ -69,37 +111,64 @@
           </div>
 
           <div class="field-grid">
-            <label class="field">
+            <label class="field color-field" data-color-field="themeColor">
               <span>主色</span>
               <input id="themeColor" name="themeColor" type="text" placeholder="#172033">
             </label>
-            <label class="field">
+            <label class="field color-field" data-color-field="accentColor">
               <span>強調色</span>
               <input id="accentColor" name="accentColor" type="text" placeholder="#0F766E">
             </label>
-            <label class="field">
+            <label class="field color-field" data-color-field="buttonBgColor">
               <span>按鈕底色</span>
               <input id="buttonBgColor" name="buttonBgColor" type="text" placeholder="#0F766E">
             </label>
-            <label class="field">
+            <label class="field color-field" data-color-field="buttonTextColor">
               <span>按鈕文字色</span>
               <input id="buttonTextColor" name="buttonTextColor" type="text" placeholder="#FFFFFF">
             </label>
           </div>
 
           <section class="subsection">
-            <h2>按鈕設定（最多 4 顆）</h2>
+            <h2>按鈕設定（4 顆可各自設定顏色）</h2>
             <div id="button-fields" class="button-grid"></div>
+            <div class="fixed-button-card">
+              <p class="fixed-button-title">按鈕 4 固定為「分享好友」</p>
+              <p class="fixed-button-text">此按鈕由系統自動控制，不需在後台輸入文字、網址或啟用設定。</p>
+              <p class="fixed-button-text">在 LIFF 中會觸發分享流程；在聊天室 Flex 卡中會引導使用者開啟名片分享。</p>
+              <div class="field-grid fixed-button-colors">
+                <label class="field color-field" data-color-field="button4BgColor">
+                  <span>按鈕 4 底色</span>
+                  <input id="button4BgColor" name="button4BgColor" type="text" placeholder="#0F766E">
+                </label>
+                <label class="field color-field" data-color-field="button4TextColor">
+                  <span>按鈕 4 文字色</span>
+                  <input id="button4TextColor" name="button4TextColor" type="text" placeholder="#FFFFFF">
+                </label>
+              </div>
+            </div>
           </section>
 
           <div class="actions">
-            <button id="save-button" type="submit" class="button button-primary">儲存到 Google Sheet</button>
+            <button id="save-button" type="submit" class="button button-primary">儲存設定</button>
+            <button id="get-card-link-button" type="button" class="button button-secondary">取得電子名片連結</button>
           </div>
         </form>
 
-        <section class="result-panel">
+        <section id="result-panel" class="result-panel is-hidden">
           <h2>系統訊息</h2>
-          <pre id="result">尚未執行任何操作。</pre>
+          <pre id="result"></pre>
+        </section>
+
+        <section id="card-link-panel" class="result-panel is-hidden">
+          <h2>電子名片連結</h2>
+          <div class="link-panel-body">
+            <input id="card-link-output" class="link-output" type="text" readonly>
+            <div class="link-actions">
+              <button id="copy-card-link-button" type="button" class="button button-primary">複製連結</button>
+              <button id="close-card-link-button" type="button" class="button button-secondary">關閉</button>
+            </div>
+          </div>
         </section>
       </section>
     </main>

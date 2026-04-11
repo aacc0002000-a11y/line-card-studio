@@ -3,6 +3,8 @@ import { cardContent } from "@/data/card";
 export type CardButton = {
   label: string;
   url: string;
+  buttonBgColor?: string;
+  buttonTextColor?: string;
 };
 
 export type NormalizedCardData = {
@@ -33,6 +35,8 @@ type PublicCardApiResponse = {
     subheadline?: string;
     intro?: string;
     photoUrl?: string;
+    photo_url?: string;
+    photoFileId?: string;
     themeColor?: string;
     accentColor?: string;
     buttonBgColor?: string;
@@ -44,8 +48,21 @@ type PublicCardApiResponse = {
 
 function sanitizeButtons(buttons: CardButton[] | undefined) {
   return (buttons || [])
-    .filter((button) => button?.label && button?.url)
+    .filter((button) => button?.label)
     .slice(0, 4);
+}
+
+function resolveFinalPhotoUrl(
+  photoUrl: string | undefined,
+  legacyPhotoUrl: string | undefined,
+  photoFileId: string | undefined,
+  fallbackUrl: string,
+) {
+  if (photoFileId) {
+    return `https://drive.google.com/thumbnail?id=${encodeURIComponent(photoFileId)}&sz=w1600`;
+  }
+
+  return photoUrl || legacyPhotoUrl || fallbackUrl;
 }
 
 export function getStaticFallbackCardData(): NormalizedCardData {
@@ -69,18 +86,26 @@ export function getStaticFallbackCardData(): NormalizedCardData {
       {
         label: "前往 LINE 官方一探究竟",
         url: cardContent.links.lineUrl,
+        buttonBgColor: "#0F766E",
+        buttonTextColor: "#FFFFFF",
       },
       {
         label: "Wechat",
         url: cardContent.links.wechatUrl,
+        buttonBgColor: "#EFF5F2",
+        buttonTextColor: "#172033",
       },
       {
         label: "Facebook",
         url: cardContent.links.facebookUrl,
+        buttonBgColor: "#EFF5F2",
+        buttonTextColor: "#172033",
       },
       {
-        label: "Phone",
-        url: `tel:${cardContent.links.phone.replace(/\s+/g, "")}`,
+        label: "分享好友",
+        url: "",
+        buttonBgColor: "#0F766E",
+        buttonTextColor: "#FFFFFF",
       },
     ],
   };
@@ -98,6 +123,12 @@ export function normalizePublicCardData(
 
   const apiBullets = (card.bullets || []).filter(Boolean).slice(0, 3);
   const apiButtons = sanitizeButtons(card.buttons);
+  const finalPhotoUrl = resolveFinalPhotoUrl(
+    card.photoUrl,
+    card.photo_url,
+    card.photoFileId,
+    fallback.photoUrl,
+  );
 
   return {
     cardId: card.cardId || fallback.cardId,
@@ -106,9 +137,9 @@ export function normalizePublicCardData(
     subheadline: card.subheadline || fallback.subheadline,
     intro: card.intro || fallback.intro,
     bullets: apiBullets.length ? apiBullets : fallback.bullets,
-    photoUrl: card.photoUrl || fallback.photoUrl,
+    photoUrl: finalPhotoUrl,
     photoAlt: fallback.photoAlt,
-    shareImageUrl: card.photoUrl || fallback.shareImageUrl,
+    shareImageUrl: finalPhotoUrl || fallback.shareImageUrl,
     shareImageAlt: fallback.shareImageAlt,
     description: fallback.description,
     themeColor: card.themeColor || fallback.themeColor,

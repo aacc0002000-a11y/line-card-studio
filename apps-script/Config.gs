@@ -13,6 +13,9 @@ var CMS_CONFIG = {
     SPREADSHEET_ID: 'LINE_CARD_CMS_SPREADSHEET_ID',
     DRIVE_FOLDER_ID: 'LINE_CARD_CMS_DRIVE_FOLDER_ID'
   },
+  DRIVE: {
+    ASSET_FOLDER_NAME: 'LINE Card CMS Assets'
+  },
   SHEETS: {
     CARD_SETTINGS: 'card_settings',
     CARD_BUTTONS: 'card_buttons',
@@ -34,6 +37,9 @@ var CMS_CONFIG = {
       'buttonBgColor',
       'buttonTextColor',
       'photoUrl',
+      'photoFileId',
+      'photoMimeType',
+      'photoUpdatedAt',
       'updatedAt',
       'isActive'
     ],
@@ -42,10 +48,21 @@ var CMS_CONFIG = {
       'sort_order',
       'label',
       'url',
+      'buttonBgColor',
+      'buttonTextColor',
       'isEnabled',
       'updatedAt'
     ],
-    CARD_ASSETS: ['card_id', 'asset_type', 'file_name', 'file_url', 'updated_at'],
+    CARD_ASSETS: [
+      'card_id',
+      'asset_type',
+      'file_id',
+      'file_name',
+      'mime_type',
+      'file_url',
+      'uploaded_at',
+      'updated_at'
+    ],
     SYS_CONFIG: ['config_key', 'config_value', 'updated_at']
   }
 };

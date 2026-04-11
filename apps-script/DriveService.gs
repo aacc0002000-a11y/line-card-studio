@@ -12,12 +12,36 @@ function getDriveFolder_() {
     return null;
   }
 
-  return DriveApp.getFolderById(folderId);
+  try {
+    return DriveApp.getFolderById(folderId);
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * 確保有可用的圖片資料夾。
+ * 若尚未設定就自動建立並寫回 Script Properties。
+ */
+function ensureAssetFolder_() {
+  var folder = getDriveFolder_();
+
+  if (folder) {
+    return folder;
+  }
+
+  folder = DriveApp.createFolder(CMS_CONFIG.DRIVE.ASSET_FOLDER_NAME);
+  getScriptProperties_().setProperty(
+    CMS_CONFIG.PROPERTY_KEYS.DRIVE_FOLDER_ID,
+    folder.getId()
+  );
+
+  return folder;
 }
 
 /**
  * 資產上傳介面。
- * 第一版先保留 stub，之後要接真正的圖片上傳時可直接延伸。
+ * 給後台圖片上傳流程共用。
  */
 function uploadAsset(fileName, contentType, bytes) {
   return uploadAsset_(fileName, contentType, bytes);
@@ -25,17 +49,10 @@ function uploadAsset(fileName, contentType, bytes) {
 
 /**
  * 資產上傳的內部實作。
- * 若尚未設定資料夾，會回傳明確訊息，不會強行做壞。
  */
 function uploadAsset_(fileName, contentType, bytes) {
-  var folder = getDriveFolder_();
-
-  if (!folder) {
-    return {
-      ok: false,
-      message: '尚未設定 Drive 資料夾，第一版先保留上傳介面。'
-    };
-  }
+  var folder = ensureAssetFolder_();
+  var uploadedAt = new Date().toISOString();
 
   var blob = Utilities.newBlob(
     bytes || '',
@@ -43,11 +60,28 @@ function uploadAsset_(fileName, contentType, bytes) {
     fileName || 'asset.bin'
   );
   var file = folder.createFile(blob);
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
   return {
     ok: true,
     fileId: file.getId(),
     fileName: file.getName(),
-    url: file.getUrl()
+    mimeType: file.getMimeType(),
+    uploadedAt: uploadedAt,
+    url: buildDriveDirectImageUrl_(file.getId()),
+    driveUrl: file.getUrl(),
+    folderId: folder.getId(),
+    folderName: folder.getName()
   };
+}
+
+/**
+ * 建立可直接顯示圖片的公開網址。
+ */
+function buildDriveDirectImageUrl_(fileId) {
+  return (
+    'https://drive.google.com/thumbnail?id=' +
+    encodeURIComponent(fileId) +
+    '&sz=w1600'
+  );
 }

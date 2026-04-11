@@ -236,36 +236,6 @@ function getShareAssetUrl(assetPath: string) {
   }
 }
 
-function buildPrimaryActionButton(label: string, uri: string) {
-  return {
-    type: "button" as const,
-    style: "primary" as const,
-    color: "#0F766E",
-    flex: 1,
-    height: "sm" as const,
-    action: {
-      type: "uri" as const,
-      label,
-      uri,
-    },
-  };
-}
-
-function buildSecondaryActionButton(label: string, uri: string) {
-  return {
-    type: "button" as const,
-    style: "secondary" as const,
-    color: "#EFF5F2",
-    flex: 1,
-    height: "sm" as const,
-    action: {
-      type: "uri" as const,
-      label,
-      uri,
-    },
-  };
-}
-
 function getShareCardData(card?: NormalizedCardData) {
   return card || getStaticFallbackCardData();
 }
@@ -273,36 +243,65 @@ function getShareCardData(card?: NormalizedCardData) {
 function buildShareActionRows(
   buttons: CardButton[],
   cleanUrl: string,
-  primaryColor: string,
+  fallbackBackgroundColor: string,
+  fallbackTextColor: string,
 ) {
   const normalizedButtons = buttons.filter((button) => button.label && button.url);
-  const effectiveButtons = normalizedButtons.length
-    ? normalizedButtons.slice(0, 4)
-    : [{ label: "查看完整電子名片", url: cleanUrl }];
-  const rows = [];
+  const fourthButton = buttons[3];
+  const fixedShareEntryButton = {
+    label: fourthButton?.label || "開啟名片分享",
+    url: getLiffEntryUrl(cleanUrl),
+    buttonBgColor: fourthButton?.buttonBgColor || fallbackBackgroundColor,
+    buttonTextColor: fourthButton?.buttonTextColor || fallbackTextColor,
+  };
+  const effectiveButtons = [
+    ...(normalizedButtons.length
+      ? normalizedButtons.slice(0, 3)
+      : [
+          {
+            label: "查看完整電子名片",
+            url: cleanUrl,
+            buttonBgColor: fallbackBackgroundColor,
+            buttonTextColor: fallbackTextColor,
+          },
+        ]),
+    fixedShareEntryButton,
+  ].slice(0, 4);
 
-  for (let index = 0; index < effectiveButtons.length; index += 2) {
-    const pair = effectiveButtons.slice(index, index + 2);
-    const contents = pair.map((button, pairIndex) => {
-      if (pairIndex % 2 === 0) {
-        return {
-          ...buildPrimaryActionButton(button.label, button.url),
-          color: primaryColor,
-        };
-      }
+  return effectiveButtons.map((button) => ({
+    type: "box" as const,
+    layout: "vertical" as const,
+    spacing: "none" as const,
+    paddingAll: "13px",
+    cornerRadius: "14px",
+    backgroundColor: button.buttonBgColor || fallbackBackgroundColor,
+    borderWidth: "1px",
+    borderColor: "#E3E8F2",
+    action: {
+      type: "uri" as const,
+      label: button.label,
+      uri: button.url,
+    },
+    contents: [
+      {
+        type: "text" as const,
+        text: button.label,
+        size: "sm" as const,
+        weight: "bold" as const,
+        color: button.buttonTextColor || fallbackTextColor,
+        align: "center" as const,
+        wrap: true,
+      },
+    ],
+  }));
+}
 
-      return buildSecondaryActionButton(button.label, button.url);
-    });
-
-    rows.push({
-      type: "box" as const,
-      layout: "horizontal" as const,
-      spacing: "sm" as const,
-      contents,
-    });
+function getLiffEntryUrl(cleanUrl: string) {
+  if (LIFF_ID) {
+    return `https://liff.line.me/${LIFF_ID}`;
   }
 
-  return rows;
+  return cleanUrl;
 }
 
 function logSharePayload(
@@ -907,8 +906,8 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage(
               type: "image" as const,
               url: shareImageUrl,
               size: "full" as const,
-              aspectRatio: "5:3",
-              aspectMode: "cover" as const,
+              aspectRatio: "3:4",
+              aspectMode: "fit" as const,
               backgroundColor: "#EAF4F1",
               action: {
                 type: "uri" as const,
@@ -1009,6 +1008,7 @@ export async function buildPhotoAnd4CtaBusinessCardFlexMessage(
           card.buttons,
           cleanUrl,
           card.buttonBgColor,
+          card.buttonTextColor,
         ),
         paddingTop: "0px",
         paddingBottom: "20px",

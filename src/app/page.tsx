@@ -12,11 +12,11 @@ export default async function Home() {
     <main className="flex min-h-screen items-center justify-center px-4 py-8 sm:px-6">
       <section className="w-full max-w-md rounded-[32px] border border-line bg-card p-5 shadow-[0_24px_80px_rgba(23,32,51,0.08)] sm:p-7">
         <div className="flex items-center gap-4">
-          <div className="relative h-20 w-20 overflow-hidden rounded-3xl border border-line bg-slate-100">
+          <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-3xl border border-line bg-slate-100">
             <img
               src={card.photoUrl}
               alt={card.photoAlt}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="min-w-0 space-y-1">

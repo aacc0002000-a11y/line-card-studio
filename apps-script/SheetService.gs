@@ -179,11 +179,19 @@ function getCardIdCandidates_(cardId) {
   var candidates = [targetCardId];
 
   if (
-    targetCardId === CMS_CONFIG.DEFAULT_CARD_ID &&
     CMS_CONFIG.LEGACY_DEFAULT_CARD_ID &&
+    targetCardId === CMS_CONFIG.DEFAULT_CARD_ID &&
     CMS_CONFIG.LEGACY_DEFAULT_CARD_ID !== targetCardId
   ) {
     candidates.push(CMS_CONFIG.LEGACY_DEFAULT_CARD_ID);
+  }
+
+  if (
+    CMS_CONFIG.LEGACY_DEFAULT_CARD_ID &&
+    targetCardId === CMS_CONFIG.LEGACY_DEFAULT_CARD_ID &&
+    CMS_CONFIG.DEFAULT_CARD_ID !== targetCardId
+  ) {
+    candidates.push(CMS_CONFIG.DEFAULT_CARD_ID);
   }
 
   return candidates;

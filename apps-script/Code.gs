@@ -62,6 +62,10 @@ function handleApiRequest_(action, params) {
       return createJsonOutput_(saveCardConfig(params.payload || params));
     }
 
+    if (action === 'uploadPhotoAsset') {
+      return createJsonOutput_(uploadPhotoAsset(params.payload || params));
+    }
+
     return createJsonOutput_({
       ok: false,
       message: 'Unknown action',

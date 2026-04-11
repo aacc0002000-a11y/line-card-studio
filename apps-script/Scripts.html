@@ -1,6 +1,24 @@
 <script>
+  // Admin.html 內的 photoFile input 會以 type="file" 提供本地選圖。
   var DEFAULT_CARD_ID = 'default-card';
-  var BUTTON_COUNT = 4;
+  var BUTTON_COUNT = 3;
+  var PHOTO_PLACEHOLDER_URL = '/card-photo-placeholder.svg';
+  var SUCCESS_MESSAGE_TIMEOUT_MS = 2600;
+  var CARD_PUBLIC_BASE_URL = 'https://line-card-studio.vercel.app/';
+  var DEFAULT_COLOR_SWATCHES = [
+    '#172033',
+    '#0F766E',
+    '#FFFFFF',
+    '#2621CE',
+    '#111827',
+    '#E5E7EB',
+    '#F59E0B',
+    '#DC2626'
+  ];
+  var CUSTOM_COLOR_STORAGE_KEY = 'line-card-admin-custom-swatches';
+  var COLOR_FIELD_IDS = ['themeColor', 'accentColor', 'buttonBgColor', 'buttonTextColor'];
+  var selectedPhotoFile = null;
+  var successMessageTimer = null;
 
   /**
    * 建立按鈕欄位畫面。
@@ -16,6 +34,14 @@
         '<div class="button-card-title">按鈕 ' + (index + 1) + '</div>' +
         '<label>文字<input id="button-label-' + index + '" type="text" placeholder="按鈕文字"></label>' +
         '<label>網址<input id="button-url-' + index + '" type="text" placeholder="https:// 或 tel:"></label>' +
+        '<label class="field color-field" data-color-field="button-bg-color-' + index + '">' +
+          '<span>按鈕底色</span>' +
+          '<input id="button-bg-color-' + index + '" type="text" placeholder="' + (index === 0 ? '#0F766E' : '#EFF5F2') + '">' +
+        '</label>' +
+        '<label class="field color-field" data-color-field="button-text-color-' + index + '">' +
+          '<span>按鈕文字色</span>' +
+          '<input id="button-text-color-' + index + '" type="text" placeholder="' + (index === 0 ? '#FFFFFF' : '#172033') + '">' +
+        '</label>' +
         '<label class="button-toggle"><input id="button-enabled-' + index + '" type="checkbox">啟用這顆按鈕</label>' +
         '</div>';
     }
@@ -26,14 +52,388 @@
   /**
    * 顯示目前系統訊息。
    */
-  function showResult(data) {
-    document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+  function logDebug(data) {
+    console.log('[admin-debug]', data);
+  }
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+
+    return new Promise(function (resolve, reject) {
+      try {
+        var input = document.createElement('textarea');
+        input.value = text;
+        input.setAttribute('readonly', 'true');
+        input.style.position = 'absolute';
+        input.style.left = '-9999px';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * 成功時只顯示簡短提示，並自動消失。
+   */
+  function showSuccessMessage(message, data) {
+    var toast = document.getElementById('feedback-toast');
+
+    logDebug(data);
+    toast.textContent = message || '';
+    toast.classList.toggle('is-visible', Boolean(message));
+    hideErrorResult();
+
+    if (successMessageTimer) {
+      window.clearTimeout(successMessageTimer);
+    }
+
+    if (message) {
+      successMessageTimer = window.setTimeout(function () {
+        toast.textContent = '';
+        toast.classList.remove('is-visible');
+      }, SUCCESS_MESSAGE_TIMEOUT_MS);
+    }
+  }
+
+  /**
+   * 僅在錯誤時顯示詳細訊息區塊。
+   */
+  function showErrorResult(title, data) {
+    var panel = document.getElementById('result-panel');
+    var result = document.getElementById('result');
+    var toast = document.getElementById('feedback-toast');
+
+    toast.textContent = '';
+    toast.classList.remove('is-visible');
+    panel.classList.remove('is-hidden');
+    result.textContent = JSON.stringify(
+      {
+        ok: false,
+        message: title || '操作失敗',
+        detail: data
+      },
+      null,
+      2
+    );
+    console.error('[admin-error]', title, data);
+  }
+
+  function hideErrorResult() {
+    var panel = document.getElementById('result-panel');
+    var result = document.getElementById('result');
+
+    panel.classList.add('is-hidden');
+    result.textContent = '';
+  }
+
+  function buildCardPublicUrl() {
+    var cardId = document.getElementById('cardId').value || DEFAULT_CARD_ID;
+    var baseUrl = CARD_PUBLIC_BASE_URL.replace(/\/+$/, '') + '/';
+
+    if (!cardId || cardId === 'default-card' || cardId === 'default') {
+      return baseUrl;
+    }
+
+    return baseUrl + '?cardId=' + encodeURIComponent(cardId);
+  }
+
+  function showCardLinkPanel(url) {
+    document.getElementById('card-link-output').value = url;
+    document.getElementById('card-link-panel').classList.remove('is-hidden');
+  }
+
+  function hideCardLinkPanel() {
+    document.getElementById('card-link-panel').classList.add('is-hidden');
+  }
+
+  function openCardLinkPanel() {
+    var url = buildCardPublicUrl();
+
+    if (!url) {
+      showErrorResult('無法取得電子名片連結', {
+        message: '目前沒有可用的 cardId'
+      });
+      return;
+    }
+
+    showCardLinkPanel(url);
+    logDebug({ message: '電子名片連結已建立', url: url });
+  }
+
+  function copyCardLink() {
+    var url = document.getElementById('card-link-output').value;
+
+    if (!url) {
+      showErrorResult('複製連結失敗', {
+        message: '目前沒有可複製的電子名片連結'
+      });
+      return;
+    }
+
+    copyText(url)
+      .then(function () {
+        showSuccessMessage('電子名片連結已複製', { url: url });
+      })
+      .catch(function (error) {
+        showErrorResult('複製連結失敗', {
+          message: '請手動複製電子名片連結',
+          error: String(error)
+        });
+      });
+  }
+
+  /**
+   * 顯示圖片上傳狀態。
+   */
+  function setUploadStatus(message, tone) {
+    var node = document.getElementById('upload-status');
+    node.textContent = message || '';
+    node.setAttribute('data-tone', tone || 'info');
+  }
+
+  /**
+   * 顯示目前選取的檔名。
+   */
+  function setSelectedFileName(fileName) {
+    document.getElementById('selected-file-name').textContent =
+      fileName || '尚未選擇檔案';
+  }
+
+  function getStoredCustomSwatches() {
+    try {
+      var raw = window.localStorage.getItem(CUSTOM_COLOR_STORAGE_KEY);
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.warn('Failed to read custom color swatches', error);
+      return [];
+    }
+  }
+
+  function setStoredCustomSwatches(swatches) {
+    try {
+      window.localStorage.setItem(CUSTOM_COLOR_STORAGE_KEY, JSON.stringify(swatches));
+    } catch (error) {
+      console.warn('Failed to store custom color swatches', error);
+    }
+  }
+
+  function isValidHexColor(value) {
+    return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(String(value || '').trim());
+  }
+
+  function normalizeHexColor(value) {
+    var normalized = String(value || '').trim().toUpperCase();
+
+    if (!isValidHexColor(normalized)) {
+      return '';
+    }
+
+    if (normalized.length === 4) {
+      return (
+        '#' +
+        normalized.charAt(1) + normalized.charAt(1) +
+        normalized.charAt(2) + normalized.charAt(2) +
+        normalized.charAt(3) + normalized.charAt(3)
+      );
+    }
+
+    return normalized;
+  }
+
+  function setColorFieldValue(fieldId, value) {
+    var hexInput = document.getElementById(fieldId);
+    var colorInput = document.getElementById(fieldId + '-picker');
+    var errorNode = document.getElementById(fieldId + '-error');
+    var normalized = normalizeHexColor(value);
+
+    if (!normalized) {
+      if (errorNode) {
+        errorNode.textContent = '請輸入 #RGB 或 #RRGGBB 格式';
+      }
+      return false;
+    }
+
+    hexInput.value = normalized;
+
+    if (colorInput) {
+      colorInput.value = normalized;
+    }
+
+    if (errorNode) {
+      errorNode.textContent = '';
+    }
+
+    return true;
+  }
+
+  function renderSwatches(fieldId) {
+    var container = document.getElementById(fieldId + '-swatches');
+    var colors = DEFAULT_COLOR_SWATCHES.concat(getStoredCustomSwatches());
+    var uniqueColors = [];
+    var html = '';
+    var index;
+
+    for (index = 0; index < colors.length; index += 1) {
+      var normalized = normalizeHexColor(colors[index]);
+
+      if (!normalized || uniqueColors.indexOf(normalized) !== -1) {
+        continue;
+      }
+
+      uniqueColors.push(normalized);
+      html +=
+        '<button type="button" class="color-swatch" ' +
+        'data-color-target="' + fieldId + '" ' +
+        'data-color-value="' + normalized + '" ' +
+        'style="background:' + normalized + ';" ' +
+        'title="' + normalized + '">' +
+        '</button>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  function addCustomSwatch(fieldId) {
+    var normalized = normalizeHexColor(document.getElementById(fieldId).value);
+    var stored;
+
+    if (!normalized) {
+      document.getElementById(fieldId + '-error').textContent =
+        '目前色號格式不正確，無法加入自訂色';
+      return;
+    }
+
+    stored = getStoredCustomSwatches();
+
+    if (stored.indexOf(normalized) === -1) {
+      stored.push(normalized);
+      setStoredCustomSwatches(stored);
+    }
+
+    getColorFieldIds().forEach(function (id) {
+      renderSwatches(id);
+    });
+    showSuccessMessage('已加入自訂色票', { fieldId: fieldId, value: normalized });
+  }
+
+  function getColorFieldIds() {
+    return Array.prototype.slice
+      .call(document.querySelectorAll('[data-color-field]'))
+      .map(function (node) {
+        return node.getAttribute('data-color-field');
+      })
+      .filter(Boolean);
+  }
+
+  function enhanceColorField(fieldId) {
+    var field = document.querySelector('[data-color-field="' + fieldId + '"]');
+    var input = document.getElementById(fieldId);
+    var initialValue = normalizeHexColor(input.value || input.placeholder || DEFAULT_COLOR_SWATCHES[0]);
+    var controlsHtml;
+
+    if (!field || !input) {
+      return;
+    }
+
+    input.value = initialValue || input.value;
+    input.insertAdjacentHTML(
+      'afterend',
+      '<div class="color-input-row">' +
+        '<input id="' + fieldId + '-picker" class="color-picker" type="color" value="' + (initialValue || '#172033') + '">' +
+      '</div>' +
+      '<div id="' + fieldId + '-swatches" class="color-palette"></div>' +
+      '<div class="color-actions">' +
+        '<button type="button" class="button button-tertiary" id="' + fieldId + '-add-swatch">加入自訂色到調色盤</button>' +
+      '</div>' +
+      '<p id="' + fieldId + '-error" class="color-error"></p>'
+    );
+
+    renderSwatches(fieldId);
+
+    document
+      .getElementById(fieldId + '-picker')
+      .addEventListener('input', function () {
+        setColorFieldValue(fieldId, this.value);
+      });
+
+    input.addEventListener('input', function () {
+      if (isValidHexColor(this.value)) {
+        setColorFieldValue(fieldId, this.value);
+      }
+    });
+
+    input.addEventListener('blur', function () {
+      setColorFieldValue(fieldId, this.value);
+    });
+
+    document
+      .getElementById(fieldId + '-swatches')
+      .addEventListener('click', function (event) {
+        var target = event.target;
+
+        if (!target || target.getAttribute('data-color-target') !== fieldId) {
+          return;
+        }
+
+        setColorFieldValue(fieldId, target.getAttribute('data-color-value'));
+      });
+
+    document
+      .getElementById(fieldId + '-add-swatch')
+      .addEventListener('click', function () {
+        addCustomSwatch(fieldId);
+      });
+  }
+
+  function enhanceColorFields() {
+    getColorFieldIds().forEach(function (fieldId) {
+      enhanceColorField(fieldId);
+    });
+  }
+
+  /**
+   * 設定圖片 metadata 隱藏欄位。
+   */
+  function setPhotoMetadata(card) {
+    document.getElementById('photoFileId').value = (card && card.photoFileId) || '';
+    document.getElementById('photoMimeType').value = (card && card.photoMimeType) || '';
+    document.getElementById('photoUpdatedAt').value = (card && card.photoUpdatedAt) || '';
+  }
+
+  /**
+   * 清除圖片 metadata，避免手動改 photoUrl 時殘留舊 Drive 資訊。
+   */
+  function clearPhotoMetadata() {
+    setPhotoMetadata({});
+  }
+
+  /**
+   * 更新圖片預覽與文字說明。
+   */
+  function updatePhotoPreview(url, message) {
+    var preview = document.getElementById('photoPreview');
+    var meta = document.getElementById('photo-meta-text');
+
+    preview.src = url || PHOTO_PLACEHOLDER_URL;
+    preview.setAttribute('data-preview-source', url ? 'photoUrl' : 'placeholder');
+    meta.textContent =
+      message ||
+      (url ? '目前顯示的是已儲存圖片。' : '目前沒有已儲存圖片，將使用 placeholder。');
   }
 
   /**
    * 將後端卡片資料套進表單。
    */
   function applyAdminCard(card) {
+    document.getElementById('cardId').value = card.cardId || DEFAULT_CARD_ID;
     document.getElementById('brandEn').value = card.brandEn || card.brandName || '';
     document.getElementById('heroTitle').value = card.heroTitle || card.headline || '';
     document.getElementById('displayName').value = card.displayName || card.subheadline || '';
@@ -42,11 +442,30 @@
     document.getElementById('bullet2').value = card.bullet2 || '';
     document.getElementById('bullet3').value = card.bullet3 || '';
     document.getElementById('photoUrl').value = card.photoUrl || '';
+    setPhotoMetadata(card);
     document.getElementById('themeColor').value = card.themeColor || '';
     document.getElementById('accentColor').value = card.accentColor || '';
     document.getElementById('buttonBgColor').value = card.buttonBgColor || '';
     document.getElementById('buttonTextColor').value = card.buttonTextColor || '';
+    document.getElementById('button4BgColor').value =
+      (card.buttons && card.buttons[3] && card.buttons[3].buttonBgColor) || '#0F766E';
+    document.getElementById('button4TextColor').value =
+      (card.buttons && card.buttons[3] && card.buttons[3].buttonTextColor) || '#FFFFFF';
     document.getElementById('isActive').checked = card.isActive !== false;
+    document.getElementById('photoFile').value = '';
+    selectedPhotoFile = null;
+    setSelectedFileName('');
+
+    updatePhotoPreview(
+      card.photoUrl || '',
+      card.photoUrl
+        ? '目前顯示的是已儲存圖片。'
+        : '目前沒有已儲存圖片，將使用 placeholder。'
+    );
+    setUploadStatus(
+      card.photoUpdatedAt ? '最近上傳時間：' + card.photoUpdatedAt : '尚未選擇圖片。',
+      'info'
+    );
 
     applyButtons(card.buttons || []);
   }
@@ -62,6 +481,10 @@
 
       document.getElementById('button-label-' + index).value = button.label || '';
       document.getElementById('button-url-' + index).value = button.url || '';
+      document.getElementById('button-bg-color-' + index).value =
+        button.buttonBgColor || (index === 0 ? '#0F766E' : '#EFF5F2');
+      document.getElementById('button-text-color-' + index).value =
+        button.buttonTextColor || (index === 0 ? '#FFFFFF' : '#172033');
       document.getElementById('button-enabled-' + index).checked =
         button.isEnabled === true || button.is_enabled === true;
     }
@@ -76,11 +499,23 @@
 
     for (index = 0; index < BUTTON_COUNT; index += 1) {
       buttons.push({
+        sortOrder: index + 1,
         label: document.getElementById('button-label-' + index).value,
         url: document.getElementById('button-url-' + index).value,
+        buttonBgColor: document.getElementById('button-bg-color-' + index).value,
+        buttonTextColor: document.getElementById('button-text-color-' + index).value,
         isEnabled: document.getElementById('button-enabled-' + index).checked
       });
     }
+
+    buttons.push({
+      sortOrder: 4,
+      label: '分享好友',
+      url: '',
+      buttonBgColor: document.getElementById('button4BgColor').value,
+      buttonTextColor: document.getElementById('button4TextColor').value,
+      isEnabled: true
+    });
 
     return {
       cardId: DEFAULT_CARD_ID,
@@ -97,25 +532,145 @@
       buttonBgColor: document.getElementById('buttonBgColor').value,
       buttonTextColor: document.getElementById('buttonTextColor').value,
       isActive: document.getElementById('isActive').checked,
+      photoFileId: document.getElementById('photoFileId').value,
+      photoMimeType: document.getElementById('photoMimeType').value,
+      photoUpdatedAt: document.getElementById('photoUpdatedAt').value,
       buttons: buttons
     };
+  }
+
+  /**
+   * 檢查是否為支援的圖片格式。
+   */
+  function isSupportedPhotoFile(file) {
+    var allowedTypes = {
+      'image/jpeg': true,
+      'image/png': true,
+      'image/webp': true
+    };
+
+    return !!(file && allowedTypes[file.type]);
+  }
+
+  /**
+   * 讀取本地圖片並顯示預覽。
+   */
+  function handlePhotoSelection(event) {
+    var file = event.target.files && event.target.files[0];
+    var currentPhotoUrl = document.getElementById('photoUrl').value || '';
+
+    selectedPhotoFile = null;
+
+    if (!file) {
+      setSelectedFileName('');
+      setUploadStatus('尚未選擇圖片。', 'info');
+      updatePhotoPreview(
+        currentPhotoUrl,
+        currentPhotoUrl ? '目前顯示的是已儲存圖片。' : '目前沒有已儲存圖片，將使用 placeholder。'
+      );
+      return;
+    }
+
+    if (!isSupportedPhotoFile(file)) {
+      event.target.value = '';
+      setSelectedFileName('');
+      setUploadStatus('不支援的圖片格式，僅支援 jpg、jpeg、png、webp。', 'error');
+      updatePhotoPreview(
+        currentPhotoUrl,
+        currentPhotoUrl ? '目前顯示的是已儲存圖片。' : '目前沒有已儲存圖片，將使用 placeholder。'
+      );
+      return;
+    }
+
+    selectedPhotoFile = file;
+    setSelectedFileName(file.name);
+
+    var reader = new FileReader();
+    reader.onload = function (loadEvent) {
+      updatePhotoPreview(
+        loadEvent && loadEvent.target ? loadEvent.target.result : '',
+        '這是本地預覽，尚未上傳到 Google Drive。'
+      );
+      setUploadStatus('已選擇圖片：' + file.name, 'info');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  /**
+   * 執行圖片上傳，成功後即時更新 photoUrl 與預覽。
+   */
+  function uploadSelectedPhoto() {
+    if (!selectedPhotoFile) {
+      setUploadStatus('請先選擇圖片，再執行上傳。', 'error');
+      return;
+    }
+
+    setUploadStatus('正在讀取圖片並上傳到 Google Drive...', 'info');
+
+    var reader = new FileReader();
+    reader.onload = function (event) {
+      var payload = {
+        cardId: DEFAULT_CARD_ID,
+        fileName: selectedPhotoFile.name,
+        mimeType: selectedPhotoFile.type,
+        base64Data: event && event.target ? event.target.result : ''
+      };
+
+      google.script.run
+        .withSuccessHandler(function (response) {
+          if (!response || response.ok !== true) {
+            setUploadStatus('圖片上傳失敗，後端未回傳成功結果。', 'error');
+            showErrorResult('圖片上傳失敗', response || { ok: false, message: '圖片上傳失敗' });
+            return;
+          }
+
+          if (response && response.card) {
+            applyAdminCard(response.card);
+          } else if (response && response.photoUrl) {
+            document.getElementById('photoUrl').value = response.photoUrl;
+            setPhotoMetadata({
+              photoFileId: response.fileId,
+              photoMimeType: response.mimeType,
+              photoUpdatedAt: response.uploadedAt
+            });
+            updatePhotoPreview(response.photoUrl, '上傳完成，這是目前已儲存的正式圖片。');
+          }
+
+          setUploadStatus(
+            '上傳成功：' + (response.fileName || selectedPhotoFile.name),
+            'success'
+          );
+          setSelectedFileName(response.fileName || selectedPhotoFile.name);
+          showSuccessMessage('圖片已上傳到 Drive', response);
+        })
+        .withFailureHandler(function (error) {
+          setUploadStatus('圖片上傳失敗，請稍後再試。', 'error');
+          showErrorResult('圖片上傳失敗', {
+            ok: false,
+            message: '圖片上傳失敗',
+            error: String(error)
+          });
+        })
+        .uploadPhotoAsset(payload);
+    };
+    reader.readAsDataURL(selectedPhotoFile);
   }
 
   /**
    * 重新讀取 default 卡片資料。
    */
   function loadCardConfig() {
-    showResult({ message: '正在讀取 default 卡片資料...' });
+    logDebug({ message: '正在讀取 default 卡片資料...' });
 
     google.script.run
       .withSuccessHandler(function (response) {
         if (response && response.card) {
           applyAdminCard(response.card);
         }
-        showResult(response);
+        showSuccessMessage('已重新載入資料', response);
       })
       .withFailureHandler(function (error) {
-        showResult({
+        showErrorResult('讀取資料失敗', {
           ok: false,
           message: '讀取資料失敗',
           error: String(error)
@@ -128,14 +683,14 @@
    * 初始化 Google Sheet schema。
    */
   function initializeSchema() {
-    showResult({ message: '正在初始化 Sheet schema...' });
+    logDebug({ message: '正在初始化 Sheet schema...' });
 
     google.script.run
       .withSuccessHandler(function (response) {
-        showResult(response);
+        showSuccessMessage('已初始化 Sheet', response);
       })
       .withFailureHandler(function (error) {
-        showResult({
+        showErrorResult('初始化失敗', {
           ok: false,
           message: '初始化失敗',
           error: String(error)
@@ -148,7 +703,7 @@
    * 建立 default 卡片預設資料。
    */
   function seedDefaultData() {
-    showResult({ message: '正在建立預設資料...' });
+    logDebug({ message: '正在建立預設資料...' });
 
     google.script.run
       .withSuccessHandler(function (response) {
@@ -157,10 +712,10 @@
         } else if (response && response.card) {
           applyAdminCard(response.card);
         }
-        showResult(response);
+        showSuccessMessage('已建立預設資料', response);
       })
       .withFailureHandler(function (error) {
-        showResult({
+        showErrorResult('建立預設資料失敗', {
           ok: false,
           message: '建立預設資料失敗',
           error: String(error)
@@ -176,7 +731,7 @@
     event.preventDefault();
 
     var payload = collectPayload();
-    showResult({
+    logDebug({
       message: '正在儲存到 Google Sheet...',
       payload: payload
     });
@@ -186,11 +741,10 @@
         if (response && response.card) {
           applyAdminCard(response.card);
         }
-        showResult(response);
-        window.alert('儲存成功，已寫回 Google Sheet。');
+        showSuccessMessage('已完成設定並儲存成功', response);
       })
       .withFailureHandler(function (error) {
-        showResult({
+        showErrorResult('儲存失敗', {
           ok: false,
           message: '儲存失敗',
           error: String(error)
@@ -201,11 +755,33 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     renderButtonFields();
+    enhanceColorFields();
+    hideErrorResult();
 
     document.getElementById('init-button').addEventListener('click', initializeSchema);
     document.getElementById('seed-button').addEventListener('click', seedDefaultData);
     document.getElementById('load-button').addEventListener('click', loadCardConfig);
     document.getElementById('card-form').addEventListener('submit', saveForm);
+    document
+      .getElementById('get-card-link-button')
+      .addEventListener('click', openCardLinkPanel);
+    document
+      .getElementById('copy-card-link-button')
+      .addEventListener('click', copyCardLink);
+    document
+      .getElementById('close-card-link-button')
+      .addEventListener('click', hideCardLinkPanel);
+    document.getElementById('photoFile').addEventListener('change', handlePhotoSelection);
+    document
+      .getElementById('upload-photo-button')
+      .addEventListener('click', uploadSelectedPhoto);
+    document.getElementById('photoUrl').addEventListener('input', function () {
+      clearPhotoMetadata();
+      updatePhotoPreview(
+        this.value,
+        this.value ? '目前顯示的是表單中的 photoUrl。' : '目前沒有 photoUrl，將使用 placeholder。'
+      );
+    });
 
     loadCardConfig();
   });

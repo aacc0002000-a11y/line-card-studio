@@ -18,6 +18,9 @@ function getDefaultCardSettings_() {
     buttonBgColor: '#0F766E',
     buttonTextColor: '#FFFFFF',
     photoUrl: '/card-photo-placeholder.svg',
+    photoFileId: '',
+    photoMimeType: '',
+    photoUpdatedAt: '',
     updatedAt: new Date().toISOString(),
     isActive: true
   };
@@ -36,6 +39,8 @@ function getDefaultButtons_() {
       sort_order: 1,
       label: '前往 LINE 官方一探究竟',
       url: 'https://line.me/ti/p/REPLACE_ME',
+      buttonBgColor: '#0F766E',
+      buttonTextColor: '#FFFFFF',
       isEnabled: true,
       updatedAt: now
     },
@@ -44,6 +49,8 @@ function getDefaultButtons_() {
       sort_order: 2,
       label: 'Wechat',
       url: 'https://wechat.com/REPLACE_ME',
+      buttonBgColor: '#EFF5F2',
+      buttonTextColor: '#172033',
       isEnabled: true,
       updatedAt: now
     },
@@ -52,14 +59,18 @@ function getDefaultButtons_() {
       sort_order: 3,
       label: 'Facebook',
       url: 'https://facebook.com/REPLACE_ME',
+      buttonBgColor: '#EFF5F2',
+      buttonTextColor: '#172033',
       isEnabled: true,
       updatedAt: now
     },
     {
       cardId: CMS_CONFIG.DEFAULT_CARD_ID,
       sort_order: 4,
-      label: 'Phone',
-      url: 'tel:0912345678',
+      label: '分享好友',
+      url: '',
+      buttonBgColor: '#0F766E',
+      buttonTextColor: '#FFFFFF',
       isEnabled: true,
       updatedAt: now
     }
@@ -79,8 +90,11 @@ function seedDefaultCardData() {
     {
       card_id: settings.card_id,
       asset_type: 'photo',
+      file_id: '',
       file_name: 'card-photo-placeholder.svg',
+      mime_type: 'image/svg+xml',
       file_url: settings.photoUrl,
+      uploaded_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
   ];
@@ -172,6 +186,8 @@ function getPublicCardJson(cardId) {
       subheadline: card.displayName,
       intro: card.intro,
       photoUrl: card.photoUrl,
+      photo_url: card.photoUrl,
+      photoFileId: card.photoFileId,
       themeColor: card.themeColor,
       accentColor: card.accentColor,
       buttonBgColor: card.buttonBgColor,
@@ -218,6 +234,10 @@ function getAdminCardJson(cardId) {
       buttonBgColor: card.buttonBgColor,
       buttonTextColor: card.buttonTextColor,
       photoUrl: card.photoUrl,
+      photo_url: card.photoUrl,
+      photoFileId: card.photoFileId,
+      photoMimeType: card.photoMimeType,
+      photoUpdatedAt: card.photoUpdatedAt,
       isActive: parseBoolean_(card.isActive),
       updatedAt: card.updatedAt,
       buttons: buttons
@@ -249,6 +269,9 @@ function saveCardConfig(payload) {
     buttonBgColor: normalized.buttonBgColor,
     buttonTextColor: normalized.buttonTextColor,
     photoUrl: normalized.photoUrl,
+    photoFileId: normalized.photoFileId,
+    photoMimeType: normalized.photoMimeType,
+    photoUpdatedAt: normalized.photoUpdatedAt,
     updatedAt: now,
     isActive: normalized.isActive
   });
@@ -261,8 +284,11 @@ function saveCardConfig(payload) {
           {
             card_id: normalized.cardId,
             asset_type: 'photo',
+            file_id: normalized.photoFileId,
             file_name: extractFileName_(normalized.photoUrl),
+            mime_type: normalized.photoMimeType,
             file_url: normalized.photoUrl,
+            uploaded_at: normalized.photoUpdatedAt || now,
             updated_at: now
           }
         ]
@@ -276,6 +302,57 @@ function saveCardConfig(payload) {
     savedCardId: normalized.cardId,
     savedAt: now,
     message: '已成功寫入 Spreadsheet',
+    card: getAdminCardJson(normalized.cardId).card
+  };
+}
+
+/**
+ * 接收後台 base64 圖片，上傳到 Drive，並把 photoUrl 寫回卡片設定。
+ */
+function uploadPhotoAsset(payload) {
+  initializeSheetSchema();
+
+  var normalized = normalizePhotoUploadPayload_(payload || {});
+  var upload = uploadAsset_(
+    buildPhotoAssetFileName_(normalized.cardId, normalized.fileName),
+    normalized.mimeType,
+    decodeBase64Data_(normalized.base64Data)
+  );
+
+  savePhotoUrlToCard_(
+    normalized.cardId,
+    upload.url,
+    upload.fileId,
+    upload.mimeType,
+    upload.uploadedAt
+  );
+  replaceCardAssets_(normalized.cardId, [
+    {
+      card_id: normalized.cardId,
+      asset_type: 'photo',
+      file_id: upload.fileId,
+      file_name: upload.fileName,
+      mime_type: upload.mimeType,
+      file_url: upload.url,
+      uploaded_at: upload.uploadedAt,
+      updated_at: upload.uploadedAt
+    }
+  ]);
+  setSystemConfig_('last_uploaded_photo_card_id', normalized.cardId);
+  setSystemConfig_('last_uploaded_photo_at', upload.uploadedAt);
+
+  return {
+    ok: true,
+    cardId: normalized.cardId,
+    message: '圖片已上傳到 Drive，並寫回 photoUrl',
+    photoUrl: upload.url,
+    fileId: upload.fileId,
+    fileName: upload.fileName,
+    mimeType: upload.mimeType,
+    uploadedAt: upload.uploadedAt,
+    driveUrl: upload.driveUrl,
+    folderId: upload.folderId,
+    folderName: upload.folderName,
     card: getAdminCardJson(normalized.cardId).card
   };
 }
@@ -312,6 +389,14 @@ function normalizeCardSettingsRecord_(record) {
     normalized[key] = record[key] !== '' && record[key] !== undefined ? record[key] : defaults[key];
   }
 
+  normalized.photoFileId =
+    normalized.photoFileId ||
+    extractDriveFileId_(normalized.photoUrl) ||
+    '';
+  normalized.photoUrl = normalizeResolvedPhotoUrl_(
+    normalized.photoUrl || normalized.photo_url || '',
+    normalized.photoFileId
+  );
   normalized.isActive = parseBoolean_(normalized.isActive);
 
   return normalized;
@@ -327,6 +412,8 @@ function normalizeButtonRecord_(record) {
     sort_order: Number(record.sort_order || 0),
     label: record.label || '',
     url: record.url || '',
+    buttonBgColor: record.buttonBgColor || '',
+    buttonTextColor: record.buttonTextColor || '',
     isEnabled: parseBoolean_(record.isEnabled),
     is_enabled: parseBoolean_(record.isEnabled),
     updatedAt: record.updatedAt || '',
@@ -344,7 +431,9 @@ function mapButtonsForPublicApi_(buttons) {
   for (index = 0; index < buttons.length; index += 1) {
     result.push({
       label: buttons[index].label,
-      url: buttons[index].url
+      url: buttons[index].url,
+      buttonBgColor: buttons[index].buttonBgColor,
+      buttonTextColor: buttons[index].buttonTextColor
     });
   }
 
@@ -365,6 +454,8 @@ function padButtonsForAdmin_(buttons) {
         sort_order: index + 1,
         label: '',
         url: '',
+        buttonBgColor: index === 0 || index === 3 ? '#0F766E' : '#EFF5F2',
+        buttonTextColor: index === 0 || index === 3 ? '#FFFFFF' : '#172033',
         isEnabled: false,
         is_enabled: false
       }
@@ -378,6 +469,15 @@ function padButtonsForAdmin_(buttons) {
  * 將管理頁儲存資料正規化，避免空值或型別混亂。
  */
 function normalizeSavePayload_(payload) {
+  var resolvedPhotoFileId =
+    payload.photoFileId ||
+    extractDriveFileId_(payload.photoUrl || payload.photo_url || '') ||
+    '';
+  var resolvedPhotoUrl = normalizeResolvedPhotoUrl_(
+    payload.photoUrl || payload.photo_url || '',
+    resolvedPhotoFileId
+  );
+
   return {
     cardId: payload.cardId || CMS_CONFIG.DEFAULT_CARD_ID,
     brandEn: payload.brandEn || payload.brandName || '',
@@ -391,9 +491,45 @@ function normalizeSavePayload_(payload) {
     accentColor: payload.accentColor || '#0F766E',
     buttonBgColor: payload.buttonBgColor || '#0F766E',
     buttonTextColor: payload.buttonTextColor || '#FFFFFF',
-    photoUrl: payload.photoUrl || '',
+    photoUrl: resolvedPhotoUrl,
+    photoFileId: resolvedPhotoFileId,
+    photoMimeType: payload.photoMimeType || '',
+    photoUpdatedAt: payload.photoUpdatedAt || '',
     isActive: payload.isActive !== false,
     buttons: normalizeSaveButtons_(payload.buttons || [])
+  };
+}
+
+/**
+ * 驗證圖片上傳 payload。
+ */
+function normalizePhotoUploadPayload_(payload) {
+  var fileName = String(payload.fileName || '').trim();
+  var mimeType = String(payload.mimeType || '').trim().toLowerCase();
+  var base64Data = String(payload.base64Data || '').trim();
+  var allowedMimeTypes = {
+    'image/jpeg': true,
+    'image/png': true,
+    'image/webp': true
+  };
+
+  if (!fileName) {
+    throw new Error('缺少 fileName');
+  }
+
+  if (!allowedMimeTypes[mimeType]) {
+    throw new Error('不支援的圖片格式，僅支援 jpg、jpeg、png、webp');
+  }
+
+  if (!base64Data) {
+    throw new Error('缺少 base64Data');
+  }
+
+  return {
+    cardId: payload.cardId || CMS_CONFIG.DEFAULT_CARD_ID,
+    fileName: sanitizeFileName_(fileName),
+    mimeType: mimeType,
+    base64Data: stripDataUrlPrefix_(base64Data)
   };
 }
 
@@ -405,19 +541,45 @@ function normalizeSaveButtons_(buttons) {
   var index;
   var label;
   var url;
+  var sortOrder;
+  var buttonBgColor;
+  var buttonTextColor;
 
   for (index = 0; index < buttons.length && normalized.length < CMS_CONFIG.MAX_BUTTONS; index += 1) {
+    sortOrder = Number(buttons[index].sortOrder || index + 1);
     label = buttons[index].label || '';
     url = buttons[index].url || '';
+    buttonBgColor = normalizeHexColorForStorage_(
+      buttons[index].buttonBgColor,
+      sortOrder === 1 || sortOrder === 4 ? '#0F766E' : '#EFF5F2'
+    );
+    buttonTextColor = normalizeHexColorForStorage_(
+      buttons[index].buttonTextColor,
+      sortOrder === 1 || sortOrder === 4 ? '#FFFFFF' : '#172033'
+    );
+
+    if (sortOrder === 4) {
+      normalized.push({
+        sortOrder: 4,
+        label: '分享好友',
+        url: '',
+        buttonBgColor: buttonBgColor,
+        buttonTextColor: buttonTextColor,
+        isEnabled: true
+      });
+      continue;
+    }
 
     if (!label || !url) {
       continue;
     }
 
     normalized.push({
-      sortOrder: index + 1,
+      sortOrder: sortOrder,
       label: label,
       url: url,
+      buttonBgColor: buttonBgColor,
+      buttonTextColor: buttonTextColor,
       isEnabled: buttons[index].isEnabled === true
     });
   }
@@ -438,6 +600,8 @@ function buildButtonRowsForSave_(cardId, buttons, updatedAt) {
       sort_order: buttons[index].sortOrder,
       label: buttons[index].label,
       url: buttons[index].url,
+      buttonBgColor: buttons[index].buttonBgColor,
+      buttonTextColor: buttons[index].buttonTextColor,
       isEnabled: buttons[index].isEnabled,
       updatedAt: updatedAt
     });
@@ -467,4 +631,137 @@ function extractFileName_(url) {
 
   var parts = String(url).split('/');
   return parts[parts.length - 1];
+}
+
+/**
+ * 將 base64 字串轉回位元組陣列。
+ */
+function decodeBase64Data_(base64Data) {
+  try {
+    return Utilities.base64Decode(base64Data);
+  } catch (error) {
+    return Utilities.base64DecodeWebSafe(base64Data);
+  }
+}
+
+/**
+ * 拿掉 data URL 前綴。
+ */
+function stripDataUrlPrefix_(value) {
+  return String(value).replace(/^data:[^;]+;base64,/, '');
+}
+
+/**
+ * 將上傳結果寫回 card_settings。
+ */
+function savePhotoUrlToCard_(cardId, photoUrl, fileId, mimeType, uploadedAt) {
+  var existing = getCardConfig(cardId);
+  var resolvedPhotoFileId = fileId || extractDriveFileId_(photoUrl) || '';
+  var resolvedPhotoUrl = normalizeResolvedPhotoUrl_(photoUrl, resolvedPhotoFileId);
+
+  upsertCardSettings_({
+    card_id: existing.card_id || cardId,
+    brandEn: existing.brandEn,
+    heroTitle: existing.heroTitle,
+    displayName: existing.displayName,
+    intro: existing.intro,
+    bullet_1: existing.bullet_1,
+    bullet_2: existing.bullet_2,
+    bullet_3: existing.bullet_3,
+    themeColor: existing.themeColor,
+    accentColor: existing.accentColor,
+    buttonBgColor: existing.buttonBgColor,
+    buttonTextColor: existing.buttonTextColor,
+    photoUrl: resolvedPhotoUrl,
+    photoFileId: resolvedPhotoFileId,
+    photoMimeType: mimeType,
+    photoUpdatedAt: uploadedAt,
+    updatedAt: uploadedAt,
+    isActive: existing.isActive
+  });
+}
+
+function normalizeHexColorForStorage_(value, fallback) {
+  var normalized = String(value || '').trim().toUpperCase();
+
+  if (!/^#([0-9A-F]{3}|[0-9A-F]{6})$/.test(normalized)) {
+    return fallback;
+  }
+
+  if (normalized.length === 4) {
+    return (
+      '#' +
+      normalized.charAt(1) + normalized.charAt(1) +
+      normalized.charAt(2) + normalized.charAt(2) +
+      normalized.charAt(3) + normalized.charAt(3)
+    );
+  }
+
+  return normalized;
+}
+
+/**
+ * 將 photoUrl 統一轉成前台 / LIFF / Admin API 可直接共用的圖片網址。
+ */
+function normalizeResolvedPhotoUrl_(photoUrl, fileId) {
+  var normalizedPhotoUrl = String(photoUrl || '').trim();
+  var resolvedFileId = fileId || extractDriveFileId_(normalizedPhotoUrl);
+
+  if (resolvedFileId) {
+    return buildDriveDirectImageUrl_(resolvedFileId);
+  }
+
+  return normalizedPhotoUrl;
+}
+
+/**
+ * 從各種 Google Drive 連結格式中抽出 fileId。
+ */
+function extractDriveFileId_(photoUrl) {
+  var value = String(photoUrl || '').trim();
+  var match;
+
+  if (!value) {
+    return '';
+  }
+
+  match = value.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  match = value.match(/\/d\/([A-Za-z0-9_-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  match = value.match(/googleusercontent\.com\/d\/([A-Za-z0-9_-]+)/);
+  if (match && match[1]) {
+    return match[1];
+  }
+
+  return '';
+}
+
+/**
+ * 產生穩定的 Drive 檔名。
+ */
+function buildPhotoAssetFileName_(cardId, fileName) {
+  return (
+    sanitizeFileName_(cardId || CMS_CONFIG.DEFAULT_CARD_ID) +
+    '-' +
+    Utilities.formatDate(new Date(), 'UTC', 'yyyyMMdd-HHmmss') +
+    '-' +
+    sanitizeFileName_(fileName || 'photo')
+  );
+}
+
+/**
+ * 移除檔名中的危險字元。
+ */
+function sanitizeFileName_(fileName) {
+  return String(fileName || 'file')
+    .replace(/[^\w.\-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 }

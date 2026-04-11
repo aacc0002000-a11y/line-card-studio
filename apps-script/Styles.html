@@ -84,13 +84,28 @@
     margin-bottom: 20px;
   }
 
+  .feedback-toast {
+    min-height: 22px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    opacity: 0;
+    transition: opacity 180ms ease;
+  }
+
+  .feedback-toast.is-visible {
+    opacity: 1;
+  }
+
   .form {
     display: grid;
     gap: 18px;
   }
 
   .field-grid,
-  .button-grid {
+  .button-grid,
+  .upload-grid {
     display: grid;
     gap: 16px;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -128,6 +143,69 @@
     min-height: 120px;
   }
 
+  .color-field {
+    align-content: start;
+  }
+
+  .color-input-row {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 10px;
+    align-items: center;
+  }
+
+  .color-picker {
+    width: 56px;
+    height: 44px;
+    padding: 4px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    cursor: pointer;
+  }
+
+  .color-palette {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .color-swatch {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 2px solid rgba(23, 32, 51, 0.12);
+    border-radius: 999px;
+    cursor: pointer;
+  }
+
+  .color-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .button-tertiary {
+    color: var(--primary);
+    background: #edf6f0;
+  }
+
+  .color-error {
+    min-height: 18px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #b42318;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
   .field-checkbox {
     align-content: end;
   }
@@ -145,11 +223,39 @@
     background: #fbf7f0;
   }
 
+  .tip-panel,
+  .fixed-button-card {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(45, 106, 79, 0.18);
+    border-radius: 14px;
+    background: #f4f8f2;
+  }
+
+  .tip-title,
+  .fixed-button-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+
+  .tip-text,
+  .fixed-button-text {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+
   .button-card {
     padding: 16px;
     border: 1px solid var(--border);
     border-radius: 14px;
     background: #fff;
+    align-content: start;
   }
 
   .button-card-title {
@@ -163,6 +269,78 @@
     gap: 8px;
     font-size: 13px;
     color: var(--muted);
+  }
+
+  .fixed-button-colors {
+    margin-top: 8px;
+  }
+
+  .file-input-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .file-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+  }
+
+  .upload-actions {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+  }
+
+  .upload-status {
+    margin: 0;
+    min-height: 22px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .upload-status[data-tone="success"] {
+    color: var(--primary);
+  }
+
+  .upload-status[data-tone="error"] {
+    color: #b42318;
+  }
+
+  .upload-status[data-tone="info"] {
+    color: #7a5c1f;
+  }
+
+  .photo-preview-panel {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+    align-items: start;
+    margin-top: 16px;
+  }
+
+  .photo-preview {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    object-fit: contain;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: #f8f3ea;
+  }
+
+  .photo-meta {
+    display: grid;
+    gap: 8px;
+    align-content: start;
   }
 
   .button-toggle {
@@ -204,6 +382,31 @@
     border: 1px solid var(--border);
   }
 
+  .result-panel.is-hidden {
+    display: none;
+  }
+
+  .link-panel-body {
+    display: grid;
+    gap: 14px;
+  }
+
+  .link-output {
+    width: 100%;
+    padding: 12px 14px;
+    font: inherit;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .link-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
   #result {
     margin: 0;
     white-space: pre-wrap;
@@ -224,7 +427,9 @@
     }
 
     .field-grid,
-    .button-grid {
+    .button-grid,
+    .upload-grid,
+    .photo-preview-panel {
       grid-template-columns: 1fr;
     }
 
